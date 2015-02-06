@@ -124,6 +124,9 @@ type Config struct {
 	// AdditionalGroups specifies the gids that should be added to supplementary groups
 	// in addition to those that the user belongs to.
 	AdditionalGroups []int `json:"additional_groups,omitempty"`
+
+	// Container's standard descriptors (std{in,out,err}), needed for checkpoint and restore
+	StdFds [3]string `json:"ext_pipes,omitempty"`
 }
 
 // Routes can be specified to create entries in the route table as the container is started

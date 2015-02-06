@@ -3,8 +3,10 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"syscall"
@@ -52,4 +54,22 @@ func CloseExecFrom(minFd int) error {
 		// the cases where this might fail are basically file descriptors that have already been closed (including and especially the one that was created when ioutil.ReadDir did the "opendir" syscall)
 	}
 	return nil
+}
+
+var cmdPath = make(map[string]string)
+
+func WhichPath(cmdName string) (string, error) {
+	if p := cmdPath[cmdName]; p != "" {
+		return p, nil
+	}
+
+	dirs := filepath.SplitList(os.Getenv("PATH"))
+	for _, d := range dirs {
+		p := filepath.Join(d, cmdName)
+		if _, err := os.Stat(p); err == nil {
+			cmdPath[cmdName] = p
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("%s not found in $PATH")
 }

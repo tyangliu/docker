@@ -67,6 +67,14 @@ func Exec(container *libcontainer.Config, stdin io.Reader, stdout, stderr io.Wri
 		return -1, terr
 	}
 
+	// Save standard descriptor names after start and before sending
+	// NetworkState (below) because the container process can move
+	// them (e.g., via dup2()) and we won't know at checkpoint time
+	// which file descriptor to look up.
+	if err := saveStdPipes(command.Process.Pid, &container.StdFds); err != nil {
+		return terminate(err)
+	}
+
 	started, err := system.GetProcessStartTime(command.Process.Pid)
 	if err != nil {
 		return terminate(err)

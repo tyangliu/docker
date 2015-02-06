@@ -1,7 +1,9 @@
 package logrus
 
 import (
+	"fmt"
 	"io"
+	"runtime"
 )
 
 var (
@@ -174,4 +176,19 @@ func Panicln(args ...interface{}) {
 // Fatalln logs a message at level Fatal on the standard logger.
 func Fatalln(args ...interface{}) {
 	std.Fatalln(args...)
+}
+
+// XXX Temporary Checkpoint/Restore Debug aid.
+// Prefixing lines with ">>> " is for easier visual inspection.
+func CRDbg(format string, args ...interface{}) {
+	pc := make([]uintptr, 10)
+	runtime.Callers(2, pc)
+	fn := runtime.FuncForPC(pc[0])
+	prefix := ">>> " + fn.Name() + "(): "
+	i := 0
+	if format[0] == '\n' {
+		fmt.Print("\n")
+		i = 1
+	}
+	std.Printf(prefix+format[i:], args...)
 }

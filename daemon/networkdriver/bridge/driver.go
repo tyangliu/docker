@@ -82,6 +82,11 @@ var (
 	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
 )
 
+// We need Docker's bridge name during container restore.
+func BridgeName() string {
+	return bridgeIface
+}
+
 func InitDriver(job *engine.Job) engine.Status {
 	var (
 		networkv4      *net.IPNet
@@ -496,6 +501,21 @@ func linkLocalIPv6FromMac(mac string) (string, error) {
 	return fmt.Sprintf("fe80::%x%x:%xff:fe%x:%x%x/64", hw[0], hw[1], hw[2], hw[3], hw[4], hw[5]), nil
 }
 
+// This function is called from restore (in daemon/daemon.go)
+// to reserve the IP address of a checkpointed container when
+// the daemon starts.
+func ReserveIP(id, ipAddr string) error {
+	log.CRDbg("reserving IP %s at %v", ipAddr, bridgeIPv4Network)
+	ip, err := ipallocator.RequestIP(bridgeIPv4Network, net.ParseIP(ipAddr))
+	if err != nil {
+		return err
+	}
+	currentInterfaces.Set(id, &networkInterface{
+		IP: ip,
+	})
+	return nil
+}
+
 // Allocate a network interface
 func Allocate(job *engine.Job) engine.Status {
 	var (
@@ -520,6 +540,9 @@ func Allocate(job *engine.Job) engine.Status {
 	// If no explicit mac address was given, generate a random one.
 	if mac, err = net.ParseMAC(job.Getenv("RequestedMac")); err != nil {
 		mac = generateMacAddr(ip)
+		log.CRDbg("using generated MAC address: %v", mac)
+	} else {
+		log.CRDbg("using requested MAC address: %v", mac)
 	}
 
 	if globalIPv6Network != nil {
@@ -614,6 +637,7 @@ func AllocatePort(job *engine.Job) engine.Status {
 		hostIP        = job.Getenv("HostIP")
 		hostPort      = job.GetenvInt("HostPort")
 		containerPort = job.GetenvInt("ContainerPort")
+		restoring     = job.GetenvInt("Restoring")
 		proto         = job.Getenv("Proto")
 		network       = currentInterfaces.Get(id)
 	)
@@ -656,9 +680,19 @@ func AllocatePort(job *engine.Job) engine.Status {
 		}
 		job.Logf("Failed to allocate and map port: %s, retry: %d", err, i+1)
 	}
-
 	if err != nil {
-		return job.Error(err)
+		// If we're restoring on the same Docker server, we
+		// should not error because we didn't release the port.
+		//
+		// XXX How do we handle this on a different server?
+		// XXX How do we make sure that the requestor is the
+		//     right previous owner?
+		if restoring == 1 {
+			job.Logf(">>> Ignoring error %s for restore", err)
+			err = nil
+		} else {
+			return job.Error(err)
+		}
 	}
 
 	network.PortMappings = append(network.PortMappings, host)
