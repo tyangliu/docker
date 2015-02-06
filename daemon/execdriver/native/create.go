@@ -3,6 +3,7 @@
 package native
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -81,6 +82,24 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Config, e
 		cmds[k] = v.cmd
 	}
 	d.Unlock()
+
+	return container, nil
+}
+
+// Re-create the container type from the image that was saved during checkpoint.
+func (d *driver) createRestoreContainer(c *execdriver.Command, imageDir string) (*libcontainer.Config, error) {
+	// Read the container.json.
+	f1, err := os.Open(filepath.Join(imageDir, "container.json"))
+	if err != nil {
+		return nil, err
+	}
+	defer f1.Close()
+
+	var container *libcontainer.Config
+	err = json.NewDecoder(f1).Decode(&container)
+	if err != nil {
+		return nil, err
+	}
 
 	return container, nil
 }

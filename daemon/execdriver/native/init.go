@@ -26,9 +26,17 @@ func initializer() {
 		pipe    = flag.Int("pipe", 0, "sync pipe fd")
 		console = flag.String("console", "", "console (pty slave) path")
 		root    = flag.String("root", ".", "root path for configuration files")
+		restore = flag.Bool("restore", false, "restore the container")
 	)
 
 	flag.Parse()
+
+	// Are we restoring a container?
+	if *restore {
+		if err := namespaces.InitRestore(os.NewFile(uintptr(*pipe), "child"), flag.Args()); err != nil {
+			writeError(err)
+		}
+	}
 
 	var container *libcontainer.Config
 	f, err := os.Open(filepath.Join(*root, "container.json"))
