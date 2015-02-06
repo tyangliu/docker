@@ -11,16 +11,18 @@ import (
 
 type State struct {
 	sync.Mutex
-	Running    bool
-	Paused     bool
-	Restarting bool
-	OOMKilled  bool
-	Pid        int
-	ExitCode   int
-	Error      string // contains last known error when starting the container
-	StartedAt  time.Time
-	FinishedAt time.Time
-	waitChan   chan struct{}
+	Running        bool
+	Paused         bool
+	Checkpointed   bool
+	Restarting     bool
+	OOMKilled      bool
+	Pid            int
+	ExitCode       int
+	Error          string // contains last known error when starting the container
+	StartedAt      time.Time
+	FinishedAt     time.Time
+	CheckpointedAt time.Time
+	waitChan       chan struct{}
 }
 
 func NewState() *State {
@@ -40,6 +42,8 @@ func (s *State) String() string {
 		}
 
 		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+	} else if s.Checkpointed {
+		return fmt.Sprintf("Checkpointed %s ago", units.HumanDuration(time.Now().UTC().Sub(s.CheckpointedAt)))
 	}
 
 	if s.FinishedAt.IsZero() {
@@ -143,6 +147,7 @@ func (s *State) setRunning(pid int) {
 	s.Error = ""
 	s.Running = true
 	s.Paused = false
+	s.Checkpointed = false
 	s.Restarting = false
 	s.ExitCode = 0
 	s.Pid = pid
@@ -216,4 +221,21 @@ func (s *State) IsPaused() bool {
 	res := s.Paused
 	s.Unlock()
 	return res
+}
+
+func (s *State) SetCheckpointed() {
+	s.Lock()
+	s.CheckpointedAt = time.Now().UTC()
+	s.Checkpointed = true
+	s.Running = false
+	s.Paused = false
+	s.Restarting = false
+	// XXX Not sure if we need to close and recreate waitChan.
+	// close(s.waitChan)
+	// s.waitChan = make(chan struct{})
+	s.Unlock()
+}
+
+func (s *State) IsCheckpointed() bool {
+	return s.Checkpointed
 }

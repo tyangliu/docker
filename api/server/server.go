@@ -1123,6 +1123,36 @@ func postContainersCopy(eng *engine.Engine, version version.Version, w http.Resp
 	return nil
 }
 
+func postContainersCheckpoint(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	job := eng.Job("checkpoint", vars["name"])
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func postContainersRestore(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	job := eng.Job("restore", vars["name"])
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func postContainerExecCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return nil
@@ -1322,28 +1352,30 @@ func createRouter(eng *engine.Engine, logging, enableCors bool, dockerVersion st
 			"/exec/{id:.*}/json":              getExecByID,
 		},
 		"POST": {
-			"/auth":                         postAuth,
-			"/commit":                       postCommit,
-			"/build":                        postBuild,
-			"/images/create":                postImagesCreate,
-			"/images/load":                  postImagesLoad,
-			"/images/{name:.*}/push":        postImagesPush,
-			"/images/{name:.*}/tag":         postImagesTag,
-			"/containers/create":            postContainersCreate,
-			"/containers/{name:.*}/kill":    postContainersKill,
-			"/containers/{name:.*}/pause":   postContainersPause,
-			"/containers/{name:.*}/unpause": postContainersUnpause,
-			"/containers/{name:.*}/restart": postContainersRestart,
-			"/containers/{name:.*}/start":   postContainersStart,
-			"/containers/{name:.*}/stop":    postContainersStop,
-			"/containers/{name:.*}/wait":    postContainersWait,
-			"/containers/{name:.*}/resize":  postContainersResize,
-			"/containers/{name:.*}/attach":  postContainersAttach,
-			"/containers/{name:.*}/copy":    postContainersCopy,
-			"/containers/{name:.*}/exec":    postContainerExecCreate,
-			"/exec/{name:.*}/start":         postContainerExecStart,
-			"/exec/{name:.*}/resize":        postContainerExecResize,
-			"/containers/{name:.*}/rename":  postContainerRename,
+			"/auth":                            postAuth,
+			"/commit":                          postCommit,
+			"/build":                           postBuild,
+			"/images/create":                   postImagesCreate,
+			"/images/load":                     postImagesLoad,
+			"/images/{name:.*}/push":           postImagesPush,
+			"/images/{name:.*}/tag":            postImagesTag,
+			"/containers/create":               postContainersCreate,
+			"/containers/{name:.*}/kill":       postContainersKill,
+			"/containers/{name:.*}/pause":      postContainersPause,
+			"/containers/{name:.*}/unpause":    postContainersUnpause,
+			"/containers/{name:.*}/restart":    postContainersRestart,
+			"/containers/{name:.*}/start":      postContainersStart,
+			"/containers/{name:.*}/stop":       postContainersStop,
+			"/containers/{name:.*}/wait":       postContainersWait,
+			"/containers/{name:.*}/resize":     postContainersResize,
+			"/containers/{name:.*}/attach":     postContainersAttach,
+			"/containers/{name:.*}/copy":       postContainersCopy,
+			"/containers/{name:.*}/exec":       postContainerExecCreate,
+			"/exec/{name:.*}/start":            postContainerExecStart,
+			"/exec/{name:.*}/resize":           postContainerExecResize,
+			"/containers/{name:.*}/rename":     postContainerRename,
+			"/containers/{name:.*}/checkpoint": postContainersCheckpoint,
+			"/containers/{name:.*}/restore":    postContainersRestore,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": deleteContainers,

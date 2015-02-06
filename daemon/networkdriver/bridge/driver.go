@@ -267,7 +267,7 @@ func InitDriver(job *engine.Job) engine.Status {
 	}
 
 	// Block BridgeIP in IP allocator
-	ipallocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
+	ipallocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP, 0)
 
 	// https://github.com/docker/docker/issues/2768
 	job.Eng.Hack_SetGlobalVar("httpapi.bridgeIP", bridgeIPv4Network.IP)
@@ -506,7 +506,7 @@ func linkLocalIPv6FromMac(mac string) (string, error) {
 // the daemon starts.
 func ReserveIP(id, ipAddr string) error {
 	log.CRDbg("reserving IP %s at %v", ipAddr, bridgeIPv4Network)
-	ip, err := ipallocator.RequestIP(bridgeIPv4Network, net.ParseIP(ipAddr))
+	ip, err := ipallocator.RequestIP(bridgeIPv4Network, net.ParseIP(ipAddr), 0)
 	if err != nil {
 		return err
 	}
@@ -526,12 +526,13 @@ func Allocate(job *engine.Job) engine.Status {
 		requestedIP   = net.ParseIP(job.Getenv("RequestedIP"))
 		requestedIPv6 = net.ParseIP(job.Getenv("RequestedIPv6"))
 		globalIPv6    net.IP
+		restoring     = job.GetenvInt("Restoring")
 	)
 
 	if requestedIP != nil {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP)
+		ip, err = ipallocator.RequestIP(bridgeIPv4Network, requestedIP, restoring)
 	} else {
-		ip, err = ipallocator.RequestIP(bridgeIPv4Network, nil)
+		ip, err = ipallocator.RequestIP(bridgeIPv4Network, nil, restoring)
 	}
 	if err != nil {
 		return job.Error(err)
@@ -555,7 +556,7 @@ func Allocate(job *engine.Job) engine.Status {
 			}
 		}
 
-		globalIPv6, err = ipallocator.RequestIP(globalIPv6Network, requestedIPv6)
+		globalIPv6, err = ipallocator.RequestIP(globalIPv6Network, requestedIPv6, restoring)
 		if err != nil {
 			log.Errorf("Allocator: RequestIP v6: %s", err.Error())
 			return job.Error(err)

@@ -76,7 +76,7 @@ func RegisterSubnet(network *net.IPNet, subnet *net.IPNet) error {
 // will return the next available ip if the ip provided is nil.  If the
 // ip provided is not nil it will validate that the provided ip is available
 // for use or return an error
-func RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
+func RequestIP(network *net.IPNet, ip net.IP, restoring int) (net.IP, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	key := network.String()
@@ -89,7 +89,7 @@ func RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
 	if ip == nil {
 		return allocated.getNextIP()
 	}
-	return allocated.checkIP(ip)
+	return allocated.checkIP(ip, restoring)
 }
 
 // ReleaseIP adds the provided ip back into the pool of
@@ -103,8 +103,20 @@ func ReleaseIP(network *net.IPNet, ip net.IP) error {
 	return nil
 }
 
-func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
+func (allocated *allocatedMap) checkIP(ip net.IP, restoring int) (net.IP, error) {
 	if _, ok := allocated.p[ip.String()]; ok {
+		// If we're restoring on the same Docker server, we
+		// should not error on "ip already allocated" because
+		// we didn't release it.  Also, if the server was restarted,
+		// it reserved this IP address when coming up.
+		//
+		// XXX How do we handle this on a different server?
+		// XXX How do we make sure that the requestor is the
+		//     right previous owner?
+		if restoring == 1 {
+			log.CRDbg("using already allocated ip %v", ip)
+			return ip, nil
+		}
 		return nil, ErrIPAlreadyAllocated
 	}
 

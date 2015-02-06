@@ -316,6 +316,53 @@ func populateCommand(c *Container, env []string) error {
 	return nil
 }
 
+// Like populateCommand() but for restoring a container.
+//
+// XXX populateCommand() does a lot more.  Not sure if we have
+//     to do everything it does.
+func populateCommandRestore(c *Container, env []string) error {
+	resources := &execdriver.Resources{
+		Memory:     c.Config.Memory,
+		MemorySwap: c.Config.MemorySwap,
+		CpuShares:  c.Config.CpuShares,
+		Cpuset:     c.Config.Cpuset,
+	}
+
+	processConfig := execdriver.ProcessConfig{
+		Privileged: c.hostConfig.Privileged,
+		Entrypoint: c.Path,
+		Arguments:  c.Args,
+		Tty:        c.Config.Tty,
+		User:       c.Config.User,
+	}
+
+	processConfig.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	processConfig.Env = env
+
+	c.command = &execdriver.Command{
+		ID:             c.ID,
+		Rootfs:         c.RootfsPath(),
+		ReadonlyRootfs: c.hostConfig.ReadonlyRootfs,
+		InitPath:       "/.dockerinit",
+		WorkingDir:     c.Config.WorkingDir,
+		// Network:     en,
+		// Ipc:         ipc,
+		// Pid:         pid,
+		Resources: resources,
+		// AllowedDevices: allowedDevices,
+		// AutoCreatedDevices: autoCreatedDevices,
+		CapAdd:        c.hostConfig.CapAdd,
+		CapDrop:       c.hostConfig.CapDrop,
+		ProcessConfig: processConfig,
+		ProcessLabel:  c.GetProcessLabel(),
+		MountLabel:    c.GetMountLabel(),
+		// LxcConfig:  lxcConfig,
+		AppArmorProfile: c.AppArmorProfile,
+	}
+
+	return nil
+}
+
 func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
@@ -490,7 +537,16 @@ func (container *Container) AllocateNetwork() error {
 	)
 
 	job := eng.Job("allocate_interface", container.ID)
-	job.Setenv("RequestedMac", container.Config.MacAddress)
+	if container.IsCheckpointed() {
+		log.CRDbg("restoring from checkpoint IPAddress=%v MacAddress=%v",
+			container.NetworkSettings.IPAddress, container.NetworkSettings.MacAddress)
+		job.Setenv("RequestedIP", container.NetworkSettings.IPAddress)
+		job.Setenv("RequestedMac", container.NetworkSettings.MacAddress)
+		job.SetenvInt("Restoring", 1)
+	} else {
+		log.CRDbg("requesting new MAC address")
+		job.Setenv("RequestedMac", container.Config.MacAddress)
+	}
 	if env, err = job.Stdout.AddEnv(); err != nil {
 		return err
 	}
@@ -591,6 +647,7 @@ func (container *Container) RestoreNetwork() error {
 	job := eng.Job("allocate_interface", container.ID)
 	job.Setenv("RequestedIP", container.NetworkSettings.IPAddress)
 	job.Setenv("RequestedMac", container.NetworkSettings.MacAddress)
+	job.SetenvInt("Restoring", 1)
 	if err := job.Run(); err != nil {
 		return err
 	}
@@ -607,7 +664,11 @@ func (container *Container) RestoreNetwork() error {
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
-	container.ReleaseNetwork()
+	if container.IsCheckpointed() {
+		log.CRDbg("not calling ReleaseNetwork() for checkpointed container %s", container.ID)
+	} else {
+		container.ReleaseNetwork()
+	}
 
 	// Disable all active links
 	if container.activeLinks != nil {
@@ -931,6 +992,45 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			return err
 		}),
 		nil
+}
+
+func (container *Container) Checkpoint() error {
+	return container.daemon.Checkpoint(container)
+}
+
+// Like waitForStart() but for restoring a container.
+//
+// XXX Start() does a lot more.  Not sure if we have
+//     to do everything it does.
+func (container *Container) Restore() error {
+	var err error
+
+	container.Lock()
+	defer container.Unlock()
+
+	defer func() {
+		if err != nil {
+			container.cleanup()
+		}
+	}()
+
+	if err = container.initializeNetworking(); err != nil {
+		return err
+	}
+
+	linkedEnv, err := container.setupLinkedContainers()
+	if err != nil {
+		return err
+	}
+	if err = container.setupWorkingDirectory(); err != nil {
+		return err
+	}
+	env := container.createDaemonEnvironment(linkedEnv)
+	if err = populateCommandRestore(container, env); err != nil {
+		return err
+	}
+
+	return container.waitForRestore()
 }
 
 // Returns true if the container exposes a certain port
@@ -1352,6 +1452,29 @@ func (container *Container) waitForStart() error {
 	return nil
 }
 
+// Like waitForStart() but for restoring a container.
+//
+// XXX Does RestartPolicy apply here?
+func (container *Container) waitForRestore() error {
+	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
+
+	// After calling promise.Go() we'll have two goroutines:
+	// - The current goroutine that will block in the select
+	//   below until restore is done.
+	// - A new goroutine that will restore the container and
+	//   wait for it to exit.
+	select {
+	case <-container.monitor.restoreSignal:
+		if container.ExitCode != 0 {
+			return fmt.Errorf("restore process failed")
+		}
+	case err := <-promise.Go(container.monitor.Restore):
+		return err
+	}
+
+	return nil
+}
+
 func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bindings nat.PortMap) error {
 	binding := bindings[port]
 	if container.hostConfig.PublishAllPorts && len(binding) == 0 {
@@ -1366,6 +1489,9 @@ func (container *Container) allocatePort(eng *engine.Engine, port nat.Port, bind
 		job.Setenv("HostPort", b.HostPort)
 		job.Setenv("Proto", port.Proto())
 		job.Setenv("ContainerPort", port.Port())
+		if container.IsCheckpointed() {
+			job.SetenvInt("Restoring", 1)
+		}
 
 		portEnv, err := job.Stdout.AddEnv()
 		if err != nil {

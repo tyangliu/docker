@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/vfs"
-	_ "github.com/docker/docker/daemon/networkdriver/bridge"
+	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/daemon/networkdriver/portallocator"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/engine"
@@ -112,6 +112,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 	// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 	for name, method := range map[string]engine.Handler{
 		"attach":            daemon.ContainerAttach,
+		"checkpoint":        daemon.ContainerCheckpoint,
 		"commit":            daemon.ContainerCommit,
 		"container_changes": daemon.ContainerChanges,
 		"container_copy":    daemon.ContainerCopy,
@@ -128,6 +129,7 @@ func (daemon *Daemon) Install(eng *engine.Engine) error {
 		"pause":             daemon.ContainerPause,
 		"resize":            daemon.ContainerResize,
 		"restart":           daemon.ContainerRestart,
+		"restore":           daemon.ContainerRestore,
 		"start":             daemon.ContainerStart,
 		"stop":              daemon.ContainerStop,
 		"top":               daemon.ContainerTop,
@@ -356,6 +358,19 @@ func (daemon *Daemon) restore() error {
 			log.Debugf("Loaded container %v", container.ID)
 
 			containers[container.ID] = container
+
+			// If the container was checkpointed, we need to reserve
+			// the IP address that it was using.
+			//
+			// XXX We should also reserve host ports (if any).
+			if container.IsCheckpointed() {
+				log.CRDbg("\ncontainer %s was checkpointed", container.ID)
+				err = bridge.ReserveIP(container.ID, container.NetworkSettings.IPAddress)
+				if err != nil {
+					log.Errorf("Failed to reserve IP %s for container %s",
+						container.ID, container.NetworkSettings.IPAddress)
+				}
+			}
 		} else {
 			log.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
 		}
@@ -1103,6 +1118,25 @@ func (daemon *Daemon) Unpause(c *Container) error {
 	}
 	c.SetUnpaused()
 	return nil
+}
+
+func (daemon *Daemon) Checkpoint(c *Container) error {
+	if err := daemon.execDriver.Checkpoint(c.command); err != nil {
+		return err
+	}
+	c.SetCheckpointed()
+	return nil
+}
+
+func (daemon *Daemon) Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback) (int, error) {
+	// Mount the container's filesystem (daemon/graphdriver/aufs/aufs.go).
+	_, err := daemon.driver.Get(c.ID, c.GetMountLabel())
+	if err != nil {
+		return 0, err
+	}
+
+	exitCode, err := daemon.execDriver.Restore(c.command, pipes, restoreCallback)
+	return exitCode, err
 }
 
 func (daemon *Daemon) Kill(c *Container, sig int) error {
