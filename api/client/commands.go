@@ -2769,3 +2769,51 @@ func calcuateCpuPercent(previousCpu, previousSystem uint64, v *stats.Stats) floa
 	}
 	return cpuPercent
 }
+
+func (cli *DockerCli) CmdCheckpoint(args ...string) error {
+	cmd := cli.Subcmd("checkpoint", "CONTAINER [CONTAINER...]", "Checkpoint one or more running containers", true)
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var encounteredError error
+	for _, name := range cmd.Args() {
+		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/checkpoint", nil, false))
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to checkpoint one or more containers")
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", name)
+		}
+	}
+	return encounteredError
+}
+
+func (cli *DockerCli) CmdRestore(args ...string) error {
+	cmd := cli.Subcmd("restore", "CONTAINER [CONTAINER...]", "Restore one or more checkpointed containers", true)
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+
+	if cmd.NArg() < 1 {
+		cmd.Usage()
+		return nil
+	}
+
+	var encounteredError error
+	for _, name := range cmd.Args() {
+		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/restore", nil, false))
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			encounteredError = fmt.Errorf("Error: failed to restore one or more containers")
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", name)
+		}
+	}
+	return encounteredError
+}
