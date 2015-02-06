@@ -39,6 +39,8 @@ type Hooks struct {
 	PostStop []DriverCallback
 }
 
+type RestoreCallback func(*ProcessConfig, int)
+
 // Info is driver specific information based on
 // processes registered with the driver
 type Info interface {
@@ -80,6 +82,10 @@ type Driver interface {
 
 	// Unpause unpauses a container.
 	Unpause(c *Command) error
+
+	Checkpoint(c *Command) error
+
+	Restore(c *Command, pipes *Pipes, restoreCallback RestoreCallback) (int, error)
 
 	// Name returns the name of the driver.
 	Name() string
