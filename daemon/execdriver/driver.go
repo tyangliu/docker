@@ -39,6 +39,8 @@ type Hooks struct {
 	PostStop []DriverCallback
 }
 
+type RestoreCallback func(*ProcessConfig, int)
+
 // Terminal represents a pseudo TTY, it is for when
 // using a container interactively.
 type Terminal interface {
@@ -65,6 +67,10 @@ type Driver interface {
 
 	// Unpause unpauses a container.
 	Unpause(c *Command) error
+
+	Checkpoint(c *Command) error
+
+	Restore(c *Command, pipes *Pipes, restoreCallback RestoreCallback) (int, error)
 
 	// Name returns the name of the driver.
 	Name() string
