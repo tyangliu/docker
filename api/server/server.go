@@ -1413,6 +1413,46 @@ func (s *Server) postContainersCopy(eng *engine.Engine, version version.Version,
 	return nil
 }
 
+func (s *Server) postContainersCheckpoint(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	job := eng.Job("checkpoint", vars["name"])
+
+	if err := job.DecodeEnv(r.Body); err != nil {
+		return err
+	}
+
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func (s *Server) postContainersRestore(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	job := eng.Job("restore", vars["name"])
+
+	if err := job.DecodeEnv(r.Body); err != nil {
+		return err
+	}
+
+	if err := job.Run(); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func (s *Server) postContainerExecCreate(eng *engine.Engine, version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return nil
@@ -1596,28 +1636,30 @@ func createRouter(s *Server, eng *engine.Engine) *mux.Router {
 			"/exec/{id:.*}/json":              s.getExecByID,
 		},
 		"POST": {
-			"/auth":                         s.postAuth,
-			"/commit":                       s.postCommit,
-			"/build":                        s.postBuild,
-			"/images/create":                s.postImagesCreate,
-			"/images/load":                  s.postImagesLoad,
-			"/images/{name:.*}/push":        s.postImagesPush,
-			"/images/{name:.*}/tag":         s.postImagesTag,
-			"/containers/create":            s.postContainersCreate,
-			"/containers/{name:.*}/kill":    s.postContainersKill,
-			"/containers/{name:.*}/pause":   s.postContainersPause,
-			"/containers/{name:.*}/unpause": s.postContainersUnpause,
-			"/containers/{name:.*}/restart": s.postContainersRestart,
-			"/containers/{name:.*}/start":   s.postContainersStart,
-			"/containers/{name:.*}/stop":    s.postContainersStop,
-			"/containers/{name:.*}/wait":    s.postContainersWait,
-			"/containers/{name:.*}/resize":  s.postContainersResize,
-			"/containers/{name:.*}/attach":  s.postContainersAttach,
-			"/containers/{name:.*}/copy":    s.postContainersCopy,
-			"/containers/{name:.*}/exec":    s.postContainerExecCreate,
-			"/exec/{name:.*}/start":         s.postContainerExecStart,
-			"/exec/{name:.*}/resize":        s.postContainerExecResize,
-			"/containers/{name:.*}/rename":  s.postContainerRename,
+			"/auth":                            s.postAuth,
+			"/commit":                          s.postCommit,
+			"/build":                           s.postBuild,
+			"/images/create":                   s.postImagesCreate,
+			"/images/load":                     s.postImagesLoad,
+			"/images/{name:.*}/push":           s.postImagesPush,
+			"/images/{name:.*}/tag":            s.postImagesTag,
+			"/containers/create":               s.postContainersCreate,
+			"/containers/{name:.*}/kill":       s.postContainersKill,
+			"/containers/{name:.*}/pause":      s.postContainersPause,
+			"/containers/{name:.*}/unpause":    s.postContainersUnpause,
+			"/containers/{name:.*}/restart":    s.postContainersRestart,
+			"/containers/{name:.*}/start":      s.postContainersStart,
+			"/containers/{name:.*}/stop":       s.postContainersStop,
+			"/containers/{name:.*}/wait":       s.postContainersWait,
+			"/containers/{name:.*}/resize":     s.postContainersResize,
+			"/containers/{name:.*}/attach":     s.postContainersAttach,
+			"/containers/{name:.*}/copy":       s.postContainersCopy,
+			"/containers/{name:.*}/exec":       s.postContainerExecCreate,
+			"/exec/{name:.*}/start":            s.postContainerExecStart,
+			"/exec/{name:.*}/resize":           s.postContainerExecResize,
+			"/containers/{name:.*}/rename":     s.postContainerRename,
+			"/containers/{name:.*}/checkpoint": s.postContainersCheckpoint,
+			"/containers/{name:.*}/restore":    s.postContainersRestore,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": s.deleteContainers,

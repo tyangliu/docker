@@ -319,7 +319,7 @@ func InitDriver(config *Config) error {
 	}
 
 	// Block BridgeIP in IP allocator
-	ipAllocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP)
+	ipAllocator.RequestIP(bridgeIPv4Network, bridgeIPv4Network.IP, false)
 
 	if config.EnableIptables {
 		iptables.OnReloaded(portMapper.ReMapAll) // call this on Firewalld reload
@@ -516,7 +516,7 @@ func requestDefaultGateway(requestedGateway string, network *net.IPNet) (gateway
 			return nil, fmt.Errorf("Gateway ip %s must be part of the network %s", requestedGateway, network.String())
 		}
 
-		ipAllocator.RequestIP(network, gateway)
+		ipAllocator.RequestIP(network, gateway, false)
 	}
 
 	return gateway, nil
@@ -568,8 +568,23 @@ func linkLocalIPv6FromMac(mac string) (string, error) {
 	return fmt.Sprintf("fe80::%x%x:%xff:fe%x:%x%x/64", hw[0], hw[1], hw[2], hw[3], hw[4], hw[5]), nil
 }
 
+// This function is called from restore (in daemon/daemon.go)
+// to reserve the IP address of a checkpointed container when
+// the daemon starts.
+func ReserveIP(id, ipAddr string) error {
+	logrus.Debugf("reserving IP %s at %v", ipAddr, bridgeIPv4Network)
+	ip, err := ipAllocator.RequestIP(bridgeIPv4Network, net.ParseIP(ipAddr), false)
+	if err != nil {
+		return err
+	}
+	currentInterfaces.Set(id, &networkInterface{
+		IP: ip,
+	})
+	return nil
+}
+
 // Allocate a network interface
-func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Settings, error) {
+func Allocate(id, requestedMac, requestedIP, requestedIPv6 string, restoring bool) (*network.Settings, error) {
 	var (
 		ip            net.IP
 		mac           net.HardwareAddr
@@ -579,7 +594,8 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 		defaultGWIPv6 net.IP
 	)
 
-	ip, err = ipAllocator.RequestIP(bridgeIPv4Network, net.ParseIP(requestedIP))
+	ip, err = ipAllocator.RequestIP(bridgeIPv4Network, net.ParseIP(requestedIP), restoring)
+
 	if err != nil {
 		return nil, err
 	}
@@ -587,6 +603,9 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 	// If no explicit mac address was given, generate a random one.
 	if mac, err = net.ParseMAC(requestedMac); err != nil {
 		mac = generateMacAddr(ip)
+		logrus.Debugf("using generated MAC address: %v", mac)
+	} else {
+		logrus.Debugf("using requested MAC address: %v", mac)
 	}
 
 	if globalIPv6Network != nil {
@@ -601,7 +620,7 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 			}
 		}
 
-		globalIPv6, err = ipAllocator.RequestIP(globalIPv6Network, ipv6)
+		globalIPv6, err = ipAllocator.RequestIP(globalIPv6Network, ipv6, restoring)
 		if err != nil {
 			logrus.Errorf("Allocator: RequestIP v6: %v", err)
 			return nil, err
@@ -680,7 +699,7 @@ func Release(id string) {
 }
 
 // Allocate an external port and map it to the interface
-func AllocatePort(id string, port nat.Port, binding nat.PortBinding) (nat.PortBinding, error) {
+func AllocatePort(id string, port nat.Port, binding nat.PortBinding, restoring bool) (nat.PortBinding, error) {
 	var (
 		ip            = defaultBindingIP
 		proto         = port.Proto()
@@ -735,7 +754,18 @@ func AllocatePort(id string, port nat.Port, binding nat.PortBinding) (nat.PortBi
 	}
 
 	if err != nil {
-		return nat.PortBinding{}, err
+		// If we're restoring on the same Docker server, we
+		// should not error because we didn't release the port.
+		//
+		// XXX How do we handle this on a different server?
+		// XXX How do we make sure that the requestor is the
+		//     right previous owner?
+		if restoring {
+			logrus.Warnf(">>> Ignoring error %s for restore", err)
+			err = nil
+		} else {
+			return nat.PortBinding{}, err
+		}
 	}
 
 	network.PortMappings = append(network.PortMappings, host)
