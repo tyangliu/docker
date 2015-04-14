@@ -6,21 +6,12 @@ import (
   "github.com/docker/libcontainer"
 )
 
-/*
-type CriuOpts struct {
-    ImagesDirectory             string // directory for storing image files
-    PreviousImagesDirectory     string // path to images from previous dump (relative to --images-directory)
-    LeaveRunning                Bool   // leave container in running state after checkpoint
-    TcpEstablished              bool   // checkpoint/restore established TCP connections
-    ExternalUnixConnections     bool   // allow external unix connections
-    ShellJob                    bool   // allow to dump and restore shell jobs
-}*/
-
 func (cli *DockerCli) CmdCheckpoint(args ...string) error {
     cmd := cli.Subcmd("checkpoint", "CONTAINER [CONTAINER...]", "Checkpoint one or more running containers", true)
 
     var (
         flImgDir       = cmd.String([]string{"-image-dir"}, "", "(optional) directory for storing checkpoint image files")
+        flWorkDir      = cmd.String([]string{"-work-dir"}, "", "directory for storing log file")
         flPrevImgDir   = cmd.String([]string{"-prev-image-dir"}, "", "path to images from previous dump (relative to --checkpoint-image-dir)")
         flLeaveRunning = cmd.Bool([]string{"-leave-running"}, false, "leave the container running after checkpointing")
         flCheckTcp     = cmd.Bool([]string{"-allow-tcp"}, false, "allow checkpointing established tcp connections")
@@ -39,6 +30,7 @@ func (cli *DockerCli) CmdCheckpoint(args ...string) error {
 
     criuOpts := &libcontainer.CriuOpts{
         ImagesDirectory:         *flImgDir,
+        WorkDirectory:           *flWorkDir,
         PreviousImagesDirectory: *flPrevImgDir,
         LeaveRunning:            *flLeaveRunning,
         TcpEstablished:          *flCheckTcp,

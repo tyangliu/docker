@@ -11,6 +11,7 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
 
     var (
         flImgDir       = cmd.String([]string{"-image-dir"}, "", "(optional) directory to restore image files from")
+        flWorkDir      = cmd.String([]string{"-work-dir"}, "", "directory to store temp files and restore.log")
         flCheckTcp     = cmd.Bool([]string{"-allow-tcp"}, false, "allow restoring tcp connections")
         flExtUnix      = cmd.Bool([]string{"-allow-ext-unix"}, false, "allow restoring external unix connections")
         flShell        = cmd.Bool([]string{"-allow-shell"}, false, "allow restoring shell jobs")
@@ -27,6 +28,7 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
 
     criuOpts := &libcontainer.CriuOpts{
         ImagesDirectory:         *flImgDir,
+        WorkDirectory:           *flWorkDir,
         TcpEstablished:          *flCheckTcp,
         ExternalUnixConnections: *flExtUnix,
         ShellJob:                *flShell,

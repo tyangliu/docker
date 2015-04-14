@@ -27,6 +27,9 @@ func (daemon *Daemon) ContainerCheckpoint(job *engine.Job) error {
    if job.EnvExists("ImagesDirectory") {
       opts.ImagesDirectory = job.Getenv("ImagesDirectory")
    }
+   if job.EnvExists("WorkDirectory") {
+      opts.WorkDirectory = job.Getenv("WorkDirectory")
+   }
    if job.EnvExists("PreviousImagesDirectory") {
       opts.PreviousImagesDirectory = job.Getenv("PreviousImagesDirectory")
    }
@@ -78,6 +81,9 @@ func (daemon *Daemon) ContainerRestore(job *engine.Job) error {
 
    if job.EnvExists("ImagesDirectory") {
       opts.ImagesDirectory = job.Getenv("ImagesDirectory")
+   }
+   if job.EnvExists("WorkDirectory") {
+      opts.ImagesDirectory = job.Getenv("WorkDirectory")
    }
    if job.EnvExists("TcpEstablished") {
       opts.TcpEstablished = job.GetenvBool("TcpEstablished")

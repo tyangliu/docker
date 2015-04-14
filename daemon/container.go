@@ -395,53 +395,6 @@ func populateCommand(c *Container, env []string) error {
 	return nil
 }
 
-// Like populateCommand() but for restoring a container.
-//
-// XXX populateCommand() does a lot more.  Not sure if we have
-//     to do everything it does.
-func populateCommandRestore(c *Container, env []string) error {
-	resources := &execdriver.Resources{
-		Memory:     c.hostConfig.Memory,
-		MemorySwap: c.hostConfig.MemorySwap,
-		CpuShares:  c.hostConfig.CpuShares,
-		CpusetCpus: c.hostConfig.CpusetCpus,
-	}
-
-	processConfig := execdriver.ProcessConfig{
-		Privileged: c.hostConfig.Privileged,
-		Entrypoint: c.Path,
-		Arguments:  c.Args,
-		Tty:        c.Config.Tty,
-		User:       c.Config.User,
-	}
-
-	processConfig.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	processConfig.Env = env
-
-	c.command = &execdriver.Command{
-		ID:             c.ID,
-		Rootfs:         c.RootfsPath(),
-		ReadonlyRootfs: c.hostConfig.ReadonlyRootfs,
-		InitPath:       "/.dockerinit",
-		WorkingDir:     c.Config.WorkingDir,
-		// Network:     en,
-		// Ipc:         ipc,
-		// Pid:         pid,
-		Resources: resources,
-		// AllowedDevices: allowedDevices,
-		// AutoCreatedDevices: autoCreatedDevices,
-		CapAdd:        c.hostConfig.CapAdd,
-		CapDrop:       c.hostConfig.CapDrop,
-		ProcessConfig: processConfig,
-		ProcessLabel:  c.GetProcessLabel(),
-		MountLabel:    c.GetMountLabel(),
-		// LxcConfig:  lxcConfig,
-		AppArmorProfile: c.AppArmorProfile,
-	}
-
-	return nil
-}
-
 func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
@@ -1016,8 +969,6 @@ func (container *Container) Checkpoint(opts *libcontainer.CriuOpts) error {
 	return container.daemon.Checkpoint(container, opts)
 }
 
-// Like waitForStart() but for restoring a container.
-//
 // XXX Start() does a lot more.  Not sure if we have
 //     to do everything it does.
 func (container *Container) Restore(opts *libcontainer.CriuOpts) error {
