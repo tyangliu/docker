@@ -12,7 +12,6 @@ func (cli *DockerCli) CmdCheckpoint(args ...string) error {
     var (
         flImgDir       = cmd.String([]string{"-image-dir"}, "", "(optional) directory for storing checkpoint image files")
         flWorkDir      = cmd.String([]string{"-work-dir"}, "", "directory for storing log file")
-        flPrevImgDir   = cmd.String([]string{"-prev-image-dir"}, "", "path to images from previous dump (relative to --checkpoint-image-dir)")
         flLeaveRunning = cmd.Bool([]string{"-leave-running"}, false, "leave the container running after checkpointing")
         flCheckTcp     = cmd.Bool([]string{"-allow-tcp"}, false, "allow checkpointing established tcp connections")
         flExtUnix      = cmd.Bool([]string{"-allow-ext-unix"}, false, "allow checkpointing external unix connections")
@@ -31,7 +30,6 @@ func (cli *DockerCli) CmdCheckpoint(args ...string) error {
     criuOpts := &libcontainer.CriuOpts{
         ImagesDirectory:         *flImgDir,
         WorkDirectory:           *flWorkDir,
-        PreviousImagesDirectory: *flPrevImgDir,
         LeaveRunning:            *flLeaveRunning,
         TcpEstablished:          *flCheckTcp,
         ExternalUnixConnections: *flExtUnix,

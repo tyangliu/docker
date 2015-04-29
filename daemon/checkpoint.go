@@ -30,9 +30,6 @@ func (daemon *Daemon) ContainerCheckpoint(job *engine.Job) error {
    if job.EnvExists("WorkDirectory") {
       opts.WorkDirectory = job.Getenv("WorkDirectory")
    }
-   if job.EnvExists("PreviousImagesDirectory") {
-      opts.PreviousImagesDirectory = job.Getenv("PreviousImagesDirectory")
-   }
    if job.EnvExists("LeaveRunning") {
       opts.LeaveRunning = job.GetenvBool("LeaveRunning")
    }
