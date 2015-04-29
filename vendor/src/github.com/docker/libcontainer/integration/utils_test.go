@@ -68,14 +68,9 @@ func copyBusybox(dest string) error {
 }
 
 func newContainer(config *configs.Config) (libcontainer.Container, error) {
-	cgm := libcontainer.Cgroupfs
-	if config.Cgroups != nil && config.Cgroups.Slice == "system.slice" {
-		cgm = libcontainer.SystemdCgroups
-	}
-
 	factory, err := libcontainer.New(".",
 		libcontainer.InitArgs(os.Args[0], "init", "--"),
-		cgm,
+		libcontainer.Cgroupfs,
 	)
 	if err != nil {
 		return nil, err

@@ -21,6 +21,9 @@ const (
 	// The container exists, but all its processes are paused.
 	Paused
 
+	// The container exists, but its state is saved on disk
+	Checkpointed
+
 	// The container does not exist.
 	Destroyed
 )
@@ -46,6 +49,9 @@ type State struct {
 
 	// Config is the container's configuration.
 	Config configs.Config `json:"config"`
+
+	// Container's standard descriptors (std{in,out,err}), needed for checkpoint and restore
+	ExternalDescriptors []string `json:"external_descriptors,omitempty"`
 }
 
 // A libcontainer container object.
@@ -118,7 +124,7 @@ type Container interface {
 	//
 	// errors:
 	// Systemerror - System error.
-	Restore(p *Process, criuOpts *CriuOpts) error
+	Restore(process *Process, criuOpts *CriuOpts) error
 
 	// Destroys the container after killing all running processes.
 	//

@@ -74,6 +74,13 @@ func (m *mockProcess) signal(_ os.Signal) error {
 	return nil
 }
 
+func (p *mockProcess) externalDescriptors() []string {
+	return []string{}
+}
+
+func (p *mockProcess) setExternalDescriptors(newFds []string) {
+}
+
 func TestGetContainerPids(t *testing.T) {
 	container := &linuxContainer{
 		id:            "myid",
@@ -130,8 +137,7 @@ func TestGetContainerState(t *testing.T) {
 				{Type: configs.NEWNS},
 				{Type: configs.NEWNET, Path: expectedNetworkPath},
 				{Type: configs.NEWUTS},
-				// emulate host for IPC
-				//{Type: configs.NEWIPC},
+				{Type: configs.NEWIPC},
 			},
 		},
 		initProcess: &mockProcess{
