@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"github.com/docker/libcontainer"
 )
 
 type ServerConfig struct {
@@ -1420,15 +1421,25 @@ func (s *Server) postContainersCheckpoint(eng *engine.Engine, version version.Ve
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	job := eng.Job("checkpoint", vars["name"])
 
-	if err := job.DecodeEnv(r.Body); err != nil {
+	criuOpts := &libcontainer.CriuOpts{}
+	if err := json.NewDecoder(r.Body).Decode(criuOpts); err != nil {
 		return err
 	}
 
-	if err := job.Run(); err != nil {
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		logrus.Errorf("%v", err)
+		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
+			w.WriteHeader(http.StatusNotFound)
+			return nil
+		}
+	}
+
+	if err := cont.Checkpoint(criuOpts); err != nil {
 		return err
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -1440,15 +1451,25 @@ func (s *Server) postContainersRestore(eng *engine.Engine, version version.Versi
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	job := eng.Job("restore", vars["name"])
 
-	if err := job.DecodeEnv(r.Body); err != nil {
+	criuOpts := &libcontainer.CriuOpts{}
+	if err := json.NewDecoder(r.Body).Decode(criuOpts); err != nil {
 		return err
 	}
 
-	if err := job.Run(); err != nil {
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		logrus.Errorf("%v", err)
+		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
+			w.WriteHeader(http.StatusNotFound)
+			return nil
+		}
+	}
+
+	if err := cont.Restore(criuOpts); err != nil {
 		return err
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
