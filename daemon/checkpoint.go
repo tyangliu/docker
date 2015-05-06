@@ -30,14 +30,20 @@ func (daemon *Daemon) ContainerRestore(name string, opts *libcontainer.CriuOpts)
         return err
     }
 
-    // TODO: It's possible we only want to bypass the checkpointed check,
-    // I'm not sure how this will work if the container is already running
-    if container.IsRunning() {
-        return fmt.Errorf("Container %s already running", name)
-    }
+    if !opts.ForceRestore {
+        // TODO: It's possible we only want to bypass the checkpointed check,
+        // I'm not sure how this will work if the container is already running
+        if container.IsRunning() {
+            return fmt.Errorf("Container %s already running", name)
+        }
 
-    if !container.HasBeenCheckpointed() {
-        return fmt.Errorf("Container %s is not checkpointed", name)
+        if !container.IsCheckpointed() {
+            return fmt.Errorf("Container %s is not checkpointed", name)
+        }
+    } else {
+        if !container.HasBeenCheckpointed() && opts.ImagesDirectory == "" {
+            return fmt.Errorf("You must specify an image directory to restore from", name)
+        }
     }
 
     if err = container.Restore(opts); err != nil {
