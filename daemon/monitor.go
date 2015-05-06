@@ -195,7 +195,6 @@ func (m *containerMonitor) Restore(opts *libcontainer.CriuOpts) error {
 		exitCode     execdriver.ExitStatus
 		afterRestore bool
 	)
-
 	defer func() {
 		if afterRestore {
 			m.container.Lock()
@@ -206,10 +205,12 @@ func (m *containerMonitor) Restore(opts *libcontainer.CriuOpts) error {
 	}()
 
 	// FIXME: right now if we startLogging again we get double logs after a restore
-	//if err := m.container.startLogging(); err != nil {
-	//	m.resetContainer(false)
-	//	return err
-	//}
+	if m.container.logCopier == nil {
+		if err := m.container.startLogging(); err != nil {
+			m.resetContainer(false)
+			return err
+		}
+	}
 
 	pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 

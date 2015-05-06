@@ -1427,16 +1427,7 @@ func (s *Server) postContainersCheckpoint(eng *engine.Engine, version version.Ve
 		return err
 	}
 
-	cont, err := s.daemon.Get(vars["name"])
-	if err != nil {
-		logrus.Errorf("%v", err)
-		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
-			w.WriteHeader(http.StatusNotFound)
-			return nil
-		}
-	}
-
-	if err := cont.Checkpoint(criuOpts); err != nil {
+	if err := s.daemon.ContainerCheckpoint(vars["name"], criuOpts); err != nil {
 		return err
 	}
 
@@ -1452,21 +1443,12 @@ func (s *Server) postContainersRestore(eng *engine.Engine, version version.Versi
 		return err
 	}
 
-	criuOpts := &libcontainer.CriuOpts{}
-	if err := json.NewDecoder(r.Body).Decode(criuOpts); err != nil {
+	restoreOpts := &libcontainer.CriuOpts{}
+	if err := json.NewDecoder(r.Body).Decode(restoreOpts); err != nil {
 		return err
 	}
 
-	cont, err := s.daemon.Get(vars["name"])
-	if err != nil {
-		logrus.Errorf("%v", err)
-		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
-			w.WriteHeader(http.StatusNotFound)
-			return nil
-		}
-	}
-
-	if err := cont.Restore(criuOpts); err != nil {
+	if err := s.daemon.ContainerRestore(vars["name"], restoreOpts); err != nil {
 		return err
 	}
 
