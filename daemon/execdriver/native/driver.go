@@ -302,7 +302,29 @@ func (d *driver) Checkpoint(c *execdriver.Command, opts *libcontainer.CriuOpts) 
 }
 
 func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback, opts *libcontainer.CriuOpts) (execdriver.ExitStatus, error) {
-	cont, err := d.factory.Load(c.ID)
+	var (
+		cont libcontainer.Container
+		err error
+	)
+
+	if (opts.ForceRestore) {
+		if (d.factory.Exists(c.ID)) {
+			cont, err = d.factory.Load(c.ID)
+		} else {
+			var config *configs.Config
+			config, err = d.createContainer(c)
+			if err != nil {
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+			cont, err = d.factory.Create(c.ID, config)
+		}
+	} else {
+		cont, err = d.factory.Load(c.ID)
+
+	}
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
 
 	p := &libcontainer.Process{
 		Args: append([]string{c.ProcessConfig.Entrypoint}, c.ProcessConfig.Arguments...),
@@ -312,7 +334,6 @@ func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restore
 	}
 
 	var term execdriver.Terminal
-
 	if c.ProcessConfig.Tty {
 		rootuid, err := cont.Config().HostUID()
 		if err != nil {
@@ -326,10 +347,12 @@ func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restore
 	} else {
 		p.Stdout = pipes.Stdout
 		p.Stderr = pipes.Stderr
+
 		r, w, err := os.Pipe()
 		if err != nil {
 			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
+
 		if pipes.Stdin != nil {
 			go func() {
 				io.Copy(w, pipes.Stdin)
@@ -337,18 +360,15 @@ func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restore
 			}()
 			p.Stdin = r
 		}
+
 		term = &execdriver.StdConsole{}
 	}
+
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	c.ProcessConfig.Terminal = term
-
-
-	if err != nil {
-		return execdriver.ExitStatus{ExitCode: -1}, err
-	}
 
 	d.Lock()
 	d.activeContainers[c.ID] = cont

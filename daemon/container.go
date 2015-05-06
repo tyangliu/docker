@@ -1002,7 +1002,6 @@ func (container *Container) Checkpoint(opts *libcontainer.CriuOpts) error {
 //     to do everything it does.
 func (container *Container) Restore(opts *libcontainer.CriuOpts) error {
 	var err error
-
 	container.Lock()
 	defer container.Unlock()
 
@@ -1012,22 +1011,34 @@ func (container *Container) Restore(opts *libcontainer.CriuOpts) error {
 		}
 	}()
 
+    if err = container.setupContainerDns(); err != nil {
+        return err
+    }
+    if err := container.Mount(); err != nil {
+        return err
+    }
 	if err = container.initializeNetworking(); err != nil {
 		return err
 	}
+    if err = container.updateParentsHosts(); err != nil {
+        return err
+    }
+    container.verifyDaemonSettings()
 
 	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
 	}
-
 	if err = container.setupWorkingDirectory(); err != nil {
 		return err
 	}
 
 	env := container.createDaemonEnvironment(linkedEnv)
-
 	if err = populateCommand(container, env); err != nil {
+		return err
+	}
+
+	if err = container.setupMounts(); err != nil {
 		return err
 	}
 

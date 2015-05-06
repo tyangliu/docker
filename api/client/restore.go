@@ -15,6 +15,7 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
         flCheckTcp     = cmd.Bool([]string{"-allow-tcp"}, false, "allow restoring tcp connections")
         flExtUnix      = cmd.Bool([]string{"-allow-ext-unix"}, false, "allow restoring external unix connections")
         flShell        = cmd.Bool([]string{"-allow-shell"}, false, "allow restoring shell jobs")
+        flForce        = cmd.Bool([]string{"-force"}, false, "try bypassing checks for current container state")
     )
 
     if err := cmd.ParseFlags(args, true); err != nil {
@@ -26,17 +27,18 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
         return nil
     }
 
-    criuOpts := &libcontainer.CriuOpts{
+    restoreOpts := &libcontainer.CriuOpts{
         ImagesDirectory:         *flImgDir,
         WorkDirectory:           *flWorkDir,
         TcpEstablished:          *flCheckTcp,
         ExternalUnixConnections: *flExtUnix,
         ShellJob:                *flShell,
+        ForceRestore:            *flForce,
     }
 
     var encounteredError error
     for _, name := range cmd.Args() {
-        _, _, err := readBody(cli.call("POST", "/containers/"+name+"/restore", criuOpts, nil))
+        _, _, err := readBody(cli.call("POST", "/containers/"+name+"/restore", restoreOpts, nil))
         if err != nil {
             fmt.Fprintf(cli.err, "%s\n", err)
             encounteredError = fmt.Errorf("Error: failed to restore one or more containers")
