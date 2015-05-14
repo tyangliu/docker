@@ -3,6 +3,7 @@ package client
 import (
   "fmt"
 
+  "github.com/docker/docker/runconfig"
   "github.com/docker/libcontainer"
 )
 
@@ -27,13 +28,15 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
         return nil
     }
 
-    restoreOpts := &libcontainer.CriuOpts{
-        ImagesDirectory:         *flImgDir,
-        WorkDirectory:           *flWorkDir,
-        TcpEstablished:          *flCheckTcp,
-        ExternalUnixConnections: *flExtUnix,
-        ShellJob:                *flShell,
-        ForceRestore:            *flForce,
+    restoreOpts := &runconfig.RestoreConfig {
+        CriuOpts: libcontainer.CriuOpts {
+            ImagesDirectory:         *flImgDir,
+            WorkDirectory:           *flWorkDir,
+            TcpEstablished:          *flCheckTcp,
+            ExternalUnixConnections: *flExtUnix,
+            ShellJob:                *flShell,
+        },
+        ForceRestore: *flForce,
     }
 
     var encounteredError error

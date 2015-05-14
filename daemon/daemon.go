@@ -1085,14 +1085,14 @@ func (daemon *Daemon) Checkpoint(c *Container, opts *libcontainer.CriuOpts) erro
 	return nil
 }
 
-func (daemon *Daemon) Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback, opts *libcontainer.CriuOpts) (execdriver.ExitStatus, error) {
+func (daemon *Daemon) Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback, opts *libcontainer.CriuOpts, forceRestore bool) (execdriver.ExitStatus, error) {
 	// Mount the container's filesystem (daemon/graphdriver/aufs/aufs.go).
 	_, err := daemon.driver.Get(c.ID, c.GetMountLabel())
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: 0}, err
 	}
 
-	exitCode, err := daemon.execDriver.Restore(c.command, pipes, restoreCallback, opts)
+	exitCode, err := daemon.execDriver.Restore(c.command, pipes, restoreCallback, opts, forceRestore)
 	return exitCode, err
 }
 

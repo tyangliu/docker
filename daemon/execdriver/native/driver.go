@@ -301,29 +301,27 @@ func (d *driver) Checkpoint(c *execdriver.Command, opts *libcontainer.CriuOpts) 
 	return nil
 }
 
-func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback, opts *libcontainer.CriuOpts) (execdriver.ExitStatus, error) {
+func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback, opts *libcontainer.CriuOpts, forceRestore bool) (execdriver.ExitStatus, error) {
 	var (
 		cont libcontainer.Container
 		err error
 	)
 
-	if (opts.ForceRestore) {
-		if (d.factory.Exists(c.ID)) {
-			cont, err = d.factory.Load(c.ID)
-		} else {
+	cont, err = d.factory.Load(c.ID)
+	if err != nil {
+		if forceRestore {
 			var config *configs.Config
 			config, err = d.createContainer(c)
 			if err != nil {
 				return execdriver.ExitStatus{ExitCode: -1}, err
 			}
 			cont, err = d.factory.Create(c.ID, config)
+			if err != nil {
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+		} else {
+			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
-	} else {
-		cont, err = d.factory.Load(c.ID)
-
-	}
-	if err != nil {
-		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	p := &libcontainer.Process{

@@ -1443,12 +1443,13 @@ func (s *Server) postContainersRestore(eng *engine.Engine, version version.Versi
 		return err
 	}
 
-	restoreOpts := &libcontainer.CriuOpts{}
-	if err := json.NewDecoder(r.Body).Decode(restoreOpts); err != nil {
+	logrus.Debugf("BODY: %s", r.Body)
+	restoreOpts := runconfig.RestoreConfig{}
+	if err := json.NewDecoder(r.Body).Decode(&restoreOpts); err != nil {
 		return err
 	}
 
-	if err := s.daemon.ContainerRestore(vars["name"], restoreOpts); err != nil {
+	if err := s.daemon.ContainerRestore(vars["name"], &restoreOpts.CriuOpts, restoreOpts.ForceRestore); err != nil {
 		return err
 	}
 

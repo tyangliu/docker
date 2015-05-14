@@ -1000,7 +1000,7 @@ func (container *Container) Checkpoint(opts *libcontainer.CriuOpts) error {
 
 // XXX Start() does a lot more.  Not sure if we have
 //     to do everything it does.
-func (container *Container) Restore(opts *libcontainer.CriuOpts) error {
+func (container *Container) Restore(opts *libcontainer.CriuOpts, forceRestore bool) error {
 	var err error
 	container.Lock()
 	defer container.Unlock()
@@ -1042,7 +1042,7 @@ func (container *Container) Restore(opts *libcontainer.CriuOpts) error {
 		return err
 	}
 
-	return container.waitForRestore(opts)
+	return container.waitForRestore(opts, forceRestore)
 }
 
 func (container *Container) Copy(resource string) (io.ReadCloser, error) {
@@ -1553,7 +1553,7 @@ func (container *Container) waitForStart() error {
 // Like waitForStart() but for restoring a container.
 //
 // XXX Does RestartPolicy apply here?
-func (container *Container) waitForRestore(opts *libcontainer.CriuOpts) error {
+func (container *Container) waitForRestore(opts *libcontainer.CriuOpts, forceRestore bool) error {
 	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
 
 	// After calling promise.Go() we'll have two goroutines:
@@ -1566,7 +1566,7 @@ func (container *Container) waitForRestore(opts *libcontainer.CriuOpts) error {
 		if container.ExitCode != 0 {
 			return fmt.Errorf("restore process failed")
 		}
-	case err := <-promise.Go(func() error { return container.monitor.Restore(opts) }):
+	case err := <-promise.Go(func() error { return container.monitor.Restore(opts, forceRestore) }):
 		return err
 	}
 

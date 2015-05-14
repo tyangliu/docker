@@ -24,13 +24,13 @@ func (daemon *Daemon) ContainerCheckpoint(name string, opts *libcontainer.CriuOp
 }
 
 // Restore a checkpointed container.
-func (daemon *Daemon) ContainerRestore(name string, opts *libcontainer.CriuOpts) error {
+func (daemon *Daemon) ContainerRestore(name string, opts *libcontainer.CriuOpts, forceRestore bool) error {
     container, err := daemon.Get(name)
     if err != nil {
         return err
     }
 
-    if !opts.ForceRestore {
+    if !forceRestore {
         // TODO: It's possible we only want to bypass the checkpointed check,
         // I'm not sure how this will work if the container is already running
         if container.IsRunning() {
@@ -46,7 +46,7 @@ func (daemon *Daemon) ContainerRestore(name string, opts *libcontainer.CriuOpts)
         }
     }
 
-    if err = container.Restore(opts); err != nil {
+    if err = container.Restore(opts, forceRestore); err != nil {
         container.LogEvent("die")
         return fmt.Errorf("Cannot restore container %s: %s", name, err)
     }

@@ -187,7 +187,7 @@ func (m *containerMonitor) Start() error {
 }
 
 // Like Start() but for restoring a container.
-func (m *containerMonitor) Restore(opts *libcontainer.CriuOpts) error {
+func (m *containerMonitor) Restore(opts *libcontainer.CriuOpts, forceRestore bool) error {
 	var (
 		err error
 		// XXX The following line should be changed to
@@ -216,7 +216,7 @@ func (m *containerMonitor) Restore(opts *libcontainer.CriuOpts) error {
 
 	m.container.LogEvent("restore")
 	m.lastStartTime = time.Now()
-	if exitCode, err = m.container.daemon.Restore(m.container, pipes, m.restoreCallback, opts); err != nil {
+	if exitCode, err = m.container.daemon.Restore(m.container, pipes, m.restoreCallback, opts, forceRestore); err != nil {
 		logrus.Errorf("Error restoring container: %s, exitCode=%d", err, exitCode)
 		m.container.ExitCode = -1
 		m.resetContainer(false)
