@@ -995,7 +995,9 @@ func (container *Container) GetSize() (int64, int64) {
 }
 
 func (container *Container) Checkpoint(opts *libcontainer.CriuOpts) error {
-	container.ReleaseNetwork()
+	if opts.LeaveRunning == false {
+		container.ReleaseNetwork()
+	}
 	return container.daemon.Checkpoint(container, opts)
 }
 
