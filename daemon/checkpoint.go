@@ -42,7 +42,7 @@ func (daemon *Daemon) ContainerRestore(name string, opts *libcontainer.CriuOpts,
         }
     } else {
         if !container.HasBeenCheckpointed() && opts.ImagesDirectory == "" {
-            return fmt.Errorf("You must specify an image directory to restore from", name)
+            return fmt.Errorf("You must specify an image directory to restore from %s", name)
         }
     }
 
