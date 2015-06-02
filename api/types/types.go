@@ -228,16 +228,18 @@ type ExecStartCheck struct {
 // it's part of ContainerJSONBase and will return by "inspect" command
 type ContainerState struct {
 	Status     string
-	Running    bool
-	Paused     bool
-	Restarting bool
-	OOMKilled  bool
-	Dead       bool
-	Pid        int
-	ExitCode   int
-	Error      string
-	StartedAt  string
-	FinishedAt string
+	Running        bool
+	Paused         bool
+	Checkpointed   bool
+	Restarting     bool
+	OOMKilled      bool
+	Dead           bool
+	Pid            int
+	ExitCode       int
+	Error          string
+	StartedAt      string
+	FinishedAt     string
+	CheckpointedAt string
 }
 
 // ContainerJSONBase contains response of Remote API:
