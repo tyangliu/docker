@@ -634,62 +634,6 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) Checkpoint(opts *runconfig.CriuConfig) error {
-	if err := container.daemon.Checkpoint(container, opts); err != nil {
-		return err
-	}
-
-	if opts.LeaveRunning == false {
-		container.ReleaseNetwork()
-	}
-	return nil
-}
-
-func (container *Container) Restore(opts *runconfig.CriuConfig, forceRestore bool) error {
-	var err error
-	container.Lock()
-	defer container.Unlock()
-
-	defer func() {
-		if err != nil {
-			container.setError(err)
-			// if no one else has set it, make sure we don't leave it at zero
-			if container.ExitCode == 0 {
-				container.ExitCode = 128
-			}
-			container.toDisk()
-			container.cleanup()
-		}
-	}()
-
-	if err := container.Mount(); err != nil {
-		return err
-	}
-	if err = container.initializeNetworking(true); err != nil {
-		return err
-	}
-	linkedEnv, err := container.setupLinkedContainers()
-	if err != nil {
-		return err
-	}
-	if err = container.setupWorkingDirectory(); err != nil {
-		return err
-	}
-
-	env := container.createDaemonEnvironment(linkedEnv)
-	if err = populateCommand(container, env); err != nil {
-		return err
-	}
-
-	mounts, err := container.setupMounts()
-	if err != nil {
-		return err
-	}
-
-	container.command.Mounts = mounts
-	return container.waitForRestore(opts, forceRestore)
-}
-
 func (container *Container) copy(resource string) (rc io.ReadCloser, err error) {
 	container.Lock()
 
@@ -844,6 +788,7 @@ func (container *Container) waitForStart() error {
 	return nil
 }
 
+<<<<<<< HEAD
 func (container *Container) waitForRestore(opts *runconfig.CriuConfig, forceRestore bool) error {
 	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
 
@@ -865,6 +810,9 @@ func (container *Container) waitForRestore(opts *runconfig.CriuConfig, forceRest
 }
 
 func (container *Container) getProcessLabel() string {
+=======
+func (container *Container) GetProcessLabel() string {
+>>>>>>> Move checkpoint methods into a separate container_checkpoint file.
 	// even if we have a process label return "" if we are running
 	// in privileged mode
 	if container.hostConfig.Privileged {
