@@ -35,7 +35,11 @@ func main() {
 
 		help := "\nCommands:\n"
 
-		for _, cmd := range dockerCommands {
+		// TODO(tiborvass): no need to sort if we ensure dockerCommands is sorted
+		allCommands := append(dockerCommands, experimentalCommands...)
+		sort.Sort(byName(allCommands))
+
+		for _, cmd := range allCommands {
 			help += fmt.Sprintf("    %-10.10s%s\n", cmd.name, cmd.description)
 		}
 

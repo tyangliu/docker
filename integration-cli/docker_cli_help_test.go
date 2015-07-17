@@ -238,13 +238,17 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 		}
 
+<<<<<<< HEAD
 		expected := 40
+=======
+		expected := totalDockerCLICommands
+>>>>>>> Move checkpoint/restore interface into docker experimental build.
 		if isLocalDaemon {
 			expected++ // for the daemon command
 		}
 		if len(cmds) != expected {
 			c.Fatalf("Wrong # of cmds(%d), it should be: %d\nThe list:\n%q",
-				len(cmds), expected, cmds)
+				len(cmds), totalDockerCLICommands, cmds)
 		}
 	}
 

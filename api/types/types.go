@@ -239,7 +239,7 @@ type ContainerState struct {
 	Error          string
 	StartedAt      string
 	FinishedAt     string
-	CheckpointedAt string
+	CheckpointedAt string `json:"-"`
 }
 
 // ContainerJSONBase contains response of Remote API:
