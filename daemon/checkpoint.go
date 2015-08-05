@@ -19,7 +19,7 @@ func (daemon *Daemon) ContainerCheckpoint(name string, opts *runconfig.CriuConfi
 		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
 	}
 
-	container.LogEvent("checkpoint")
+	container.logEvent("checkpoint")
 	return nil
 }
 
@@ -47,10 +47,10 @@ func (daemon *Daemon) ContainerRestore(name string, opts *runconfig.CriuConfig, 
 	}
 
 	if err = container.Restore(opts, forceRestore); err != nil {
-		container.LogEvent("die")
+		container.logEvent("die")
 		return fmt.Errorf("Cannot restore container %s: %s", name, err)
 	}
 
-	container.LogEvent("restore")
+	container.logEvent("restore")
 	return nil
 }

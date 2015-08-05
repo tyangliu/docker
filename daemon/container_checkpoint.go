@@ -13,10 +13,10 @@ func (container *Container) Checkpoint(opts *runconfig.CriuConfig) error {
 	}
 
 	if opts.LeaveRunning == false {
-		container.ReleaseNetwork()
+		container.releaseNetwork()
 	}
 
-	if err := container.ToDisk(); err != nil {
+	if err := container.toDisk(); err != nil {
 		return fmt.Errorf("Cannot update config for container: %s", err)
 	}
 

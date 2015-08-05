@@ -220,7 +220,7 @@ func (m *containerMonitor) Restore(opts *runconfig.CriuConfig, forceRestore bool
 
 	pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 
-	m.container.LogEvent("restore")
+	m.container.logEvent("restore")
 	m.lastStartTime = time.Now()
 	if exitCode, err = m.container.daemon.Restore(m.container, pipes, m.restoreCallback, opts, forceRestore); err != nil {
 		logrus.Errorf("Error restoring container: %s, exitCode=%d", err, exitCode)
@@ -232,7 +232,7 @@ func (m *containerMonitor) Restore(opts *runconfig.CriuConfig, forceRestore bool
 
 	m.container.ExitCode = exitCode.ExitCode
 	m.resetMonitor(err == nil && exitCode.ExitCode == 0)
-	m.container.LogEvent("die")
+	m.container.logEvent("die")
 	m.resetContainer(true)
 	return err
 }
@@ -341,7 +341,7 @@ func (m *containerMonitor) restoreCallback(processConfig *execdriver.ProcessConf
 	if restorePid != 0 {
 		// Write config.json and hostconfig.json files
 		// to /var/lib/docker/containers/<ID>.
-		if err := m.container.ToDisk(); err != nil {
+		if err := m.container.toDisk(); err != nil {
 			logrus.Debugf("%s", err)
 		}
 	}

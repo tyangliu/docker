@@ -899,7 +899,7 @@ func (daemon *Daemon) Checkpoint(c *Container, opts *runconfig.CriuConfig) error
 
 func (daemon *Daemon) Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback, opts *runconfig.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
 	// Mount the container's filesystem (daemon/graphdriver/aufs/aufs.go).
-	_, err := daemon.driver.Get(c.ID, c.GetMountLabel())
+	_, err := daemon.driver.Get(c.ID, c.getMountLabel())
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: 0}, err
 	}
