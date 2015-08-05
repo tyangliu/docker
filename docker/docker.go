@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
@@ -35,7 +36,6 @@ func main() {
 
 		help := "\nCommands:\n"
 
-		// TODO(tiborvass): no need to sort if we ensure dockerCommands is sorted
 		allCommands := append(dockerCommands, experimentalCommands...)
 		sort.Sort(byName(allCommands))
 
