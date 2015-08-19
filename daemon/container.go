@@ -362,7 +362,7 @@ func (container *Container) cleanup() {
 	} else {
 		container.ReleaseNetwork()
 	}*/
-	container.ReleaseNetwork()
+	container.releaseNetwork()
 
 	if err := container.Unmount(); err != nil {
 		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
@@ -789,31 +789,7 @@ func (container *Container) waitForStart() error {
 	return nil
 }
 
-<<<<<<< HEAD
-func (container *Container) waitForRestore(opts *runconfig.CriuConfig, forceRestore bool) error {
-	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
-
-	// After calling promise.Go() we'll have two goroutines:
-	// - The current goroutine that will block in the select
-	//   below until restore is done.
-	// - A new goroutine that will restore the container and
-	//   wait for it to exit.
-	select {
-	case <-container.monitor.restoreSignal:
-		if container.ExitCode != 0 {
-			return fmt.Errorf("restore process failed")
-		}
-	case err := <-promise.Go(func() error { return container.monitor.Restore(opts, forceRestore) }):
-		return err
-	}
-
-	return nil
-}
-
 func (container *Container) getProcessLabel() string {
-=======
-func (container *Container) GetProcessLabel() string {
->>>>>>> Move checkpoint methods into a separate container_checkpoint file.
 	// even if we have a process label return "" if we are running
 	// in privileged mode
 	if container.hostConfig.Privileged {
