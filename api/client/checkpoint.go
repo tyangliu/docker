@@ -18,8 +18,6 @@ func (cli *DockerCli) CmdCheckpoint(args ...string) error {
 		flImgDir       = cmd.String([]string{"-image-dir"}, "", "directory for storing checkpoint image files")
 		flWorkDir      = cmd.String([]string{"-work-dir"}, "", "directory for storing log file")
 		flLeaveRunning = cmd.Bool([]string{"-leave-running"}, false, "leave the container running after checkpoint")
-		flCheckTcp     = cmd.Bool([]string{"-allow-tcp"}, false, "allow checkpointing tcp connections")
-		flExtUnix      = cmd.Bool([]string{"-allow-ext-unix"}, false, "allow checkpointing external unix connections")
 		flShell        = cmd.Bool([]string{"-allow-shell"}, false, "allow checkpointing shell jobs")
 	)
 
@@ -36,9 +34,10 @@ func (cli *DockerCli) CmdCheckpoint(args ...string) error {
 		ImagesDirectory:         *flImgDir,
 		WorkDirectory:           *flWorkDir,
 		LeaveRunning:            *flLeaveRunning,
-		TcpEstablished:          *flCheckTcp,
-		ExternalUnixConnections: *flExtUnix,
 		ShellJob:                *flShell,
+		TcpEstablished:          true,
+		ExternalUnixConnections: true,
+		FileLocks:               true,
 	}
 
 	var encounteredError error

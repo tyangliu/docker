@@ -15,12 +15,10 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
 	cmd.Require(flag.Min, 1)
 
 	var (
-		flImgDir   = cmd.String([]string{"-image-dir"}, "", "directory to restore image files from")
-		flWorkDir  = cmd.String([]string{"-work-dir"}, "", "directory for restore log")
-		flCheckTcp = cmd.Bool([]string{"-allow-tcp"}, false, "allow restoring tcp connections")
-		flExtUnix  = cmd.Bool([]string{"-allow-ext-unix"}, false, "allow restoring external unix connections")
-		flShell    = cmd.Bool([]string{"-allow-shell"}, false, "allow restoring shell jobs")
-		flForce    = cmd.Bool([]string{"-force"}, false, "bypass checks for current container state")
+		flImgDir  = cmd.String([]string{"-image-dir"}, "", "directory to restore image files from")
+		flWorkDir = cmd.String([]string{"-work-dir"}, "", "directory for restore log")
+		flForce   = cmd.Bool([]string{"-force"}, false, "bypass checks for current container state")
+		flShell   = cmd.Bool([]string{"-allow-shell"}, false, "allow restoring shell jobs")
 	)
 
 	if err := cmd.ParseFlags(args, true); err != nil {
@@ -36,9 +34,10 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
 		CriuOpts: runconfig.CriuConfig{
 			ImagesDirectory:         *flImgDir,
 			WorkDirectory:           *flWorkDir,
-			TcpEstablished:          *flCheckTcp,
-			ExternalUnixConnections: *flExtUnix,
 			ShellJob:                *flShell,
+			TcpEstablished:          true,
+			ExternalUnixConnections: true,
+			FileLocks:               true,
 		},
 		ForceRestore: *flForce,
 	}
