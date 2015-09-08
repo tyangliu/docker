@@ -156,7 +156,7 @@ func (container *Container) updateNetwork() error {
 	return nil
 }
 
-func (container *Container) releaseNetwork() {
+func (container *Container) releaseNetwork(is_checkpoint bool) {
 }
 
 func (container *Container) unmountVolumes(forceSyscall bool) error {

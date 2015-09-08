@@ -533,6 +533,13 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 		}
 	}
 
+	for _, i := range criuOpts.VethPairs {
+		veth := new(criurpc.CriuVethPair)
+		veth.IfOut = proto.String(i.OutName)
+		veth.IfIn = proto.String(i.InName)
+		req.Opts.Veths = append(req.Opts.Veths, veth)
+	}
+
 	var (
 		fds    []string
 		fdJSON []byte
