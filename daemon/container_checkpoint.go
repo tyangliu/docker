@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/Sirupsen/logrus"
 )
 
 func (container *Container) Checkpoint(opts *runconfig.CriuConfig) error {
@@ -64,6 +65,8 @@ func (container *Container) Restore(opts *runconfig.CriuConfig, forceRestore boo
 		if err != nil {
 			return err
 		}
+
+		logrus.Debugf("GENERATING IFACE IN RESTORE: %v %v", i.DstName(), outname)
 		vethpair := runconfig.VethPairName{
 			InName:  i.DstName(),
 			OutName: outname,
