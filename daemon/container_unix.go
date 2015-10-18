@@ -987,25 +987,43 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 		}
 	}
 
-	ep, err := container.getEndpointInNetwork(n)
-	if err == nil {
-		return fmt.Errorf("container already connected to network %s", idOrName)
+	var ep libnetwork.Endpoint
+
+	if isRestoring == true {
+		// Use existing Endpoint for a checkpointed container
+		for _, endpoint := range n.Endpoints() {
+			if endpoint.ID() == container.NetworkSettings.EndpointID {
+				ep = endpoint
+			}
+		}
 	}
 
-	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
-		return err
+	if (ep == nil) {
+		if isRestoring == true {
+			fmt.Println("Fail to find the Endpoint for the checkpointed container")
+		}
+
+		ep, err = container.getEndpointInNetwork(n)
+		if err == nil {
+			return fmt.Errorf("container already connected to network %s", idOrName)
+		}
+
+		if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
+			return err
+		}
+
+		createOptions, err := container.buildCreateEndpointOptions(n, isRestoring)
+		if err != nil {
+			return err
+		}
+
+		endpointName := strings.TrimPrefix(container.Name, "/")
+		ep, err = n.CreateEndpoint(endpointName, createOptions...)
+		if err != nil {
+			return err
+		}
 	}
 
-	createOptions, err := container.buildCreateEndpointOptions(n, isRestoring)
-	if err != nil {
-		return err
-	}
-
-	endpointName := strings.TrimPrefix(container.Name, "/")
-	ep, err = n.CreateEndpoint(endpointName, createOptions...)
-	if err != nil {
-		return err
-	}
 	defer func() {
 		if err != nil {
 			if e := ep.Delete(); e != nil {
@@ -1163,7 +1181,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	}
 }
 
-func (container *Container) releaseNetwork() {
+func (container *Container) releaseNetwork(is_checkpoint bool) {
 	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
 		return
 	}
@@ -1195,6 +1213,9 @@ func (container *Container) releaseNetwork() {
 func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
+	}
+	if is_checkpoint == true {
+		return
 	}
 
 	return container.disconnectFromNetwork(n)

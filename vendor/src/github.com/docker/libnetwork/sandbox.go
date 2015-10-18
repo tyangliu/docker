@@ -38,6 +38,8 @@ type Sandbox interface {
 	Rename(name string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
+	// Retrieve the interfaces in the sandbox, for restoring checkpointed container
+	Interfaces() []osl.Interface
 }
 
 // SandboxOption is a option setter function type used to pass varios options to
@@ -225,6 +227,14 @@ func (sb *sandbox) Rename(name string) error {
 	}
 
 	return err
+}
+
+func (sb *sandbox) Interfaces() []osl.Interface {
+	// TODO: FIX this
+	// if sb.osSbox == nil {
+	//	return nil
+	// }
+	return sb.osSbox.Info().Interfaces()
 }
 
 func (sb *sandbox) Refresh(options ...SandboxOption) error {
