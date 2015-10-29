@@ -335,12 +335,13 @@ func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
-	if container.IsCheckpointed() {
+	//if container.IsCheckpointed() {
 		// log.CRDbg("not calling releaseNetwork() for checkpointed container %s", container.ID)
-		container.releaseNetwork(true)
-	} else {
-		container.releaseNetwork(false)
-	}
+	//	container.releaseNetwork(true)
+	//} else {
+	//	container.releaseNetwork(false)
+	//}
+	container.releaseNetwork()
 
 	if err := container.unmountIpcMounts(); err != nil {
 		logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)

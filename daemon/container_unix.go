@@ -992,7 +992,7 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 	if isRestoring == true {
 		// Use existing Endpoint for a checkpointed container
 		for _, endpoint := range n.Endpoints() {
-			if endpoint.ID() == container.NetworkSettings.EndpointID {
+			if endpoint.ID() == container.NetworkSettings.Networks[n.Name()].EndpointID {
 				ep = endpoint
 			}
 		}
@@ -1181,7 +1181,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	}
 }
 
-func (container *Container) releaseNetwork(is_checkpoint bool) {
+func (container *Container) releaseNetwork() {
 	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
 		return
 	}
@@ -1213,9 +1213,6 @@ func (container *Container) releaseNetwork(is_checkpoint bool) {
 func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-	if is_checkpoint == true {
-		return
 	}
 
 	return container.disconnectFromNetwork(n)
