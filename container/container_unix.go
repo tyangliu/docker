@@ -284,7 +284,7 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 }
 
 // BuildCreateEndpointOptions builds endpoint options from a given network.
-func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
+func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox, isRestoring bool) ([]libnetwork.EndpointOption, error) {
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
@@ -394,6 +394,18 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 	createOptions = append(createOptions,
 		libnetwork.CreateOptionPortMapping(pbList),
 		libnetwork.CreateOptionExposedPorts(exposeList))
+
+
+	/* FIXME: When restoring, the container should get the same IP address it had before, so
+	this information ideally would be passed to libnetwork somehow. This was an early attempt
+	that I don't believe is viable any more. */
+	/*if isRestoring && container.NetworkSettings.IPAddress != "" {
+		genericOption := options.Generic{
+			netlabel.IPAddress: net.ParseIP(container.NetworkSettings.IPAddress),
+		}
+
+		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+	}*/
 
 	return createOptions, nil
 }

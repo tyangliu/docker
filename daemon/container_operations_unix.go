@@ -599,7 +599,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	return nil
 }
 
-func (daemon *Daemon) allocateNetwork(container *container.Container) error {
+func (daemon *Daemon) allocateNetwork(container *container.Container, isRestoring bool) error {
 	controller := daemon.netController
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
@@ -621,7 +621,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 	}
 
 	for n, nConf := range container.NetworkSettings.Networks {
-		if err := daemon.connectToNetwork(container, n, nConf, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(container, n, nConf, updateSettings, isRestoring); err != nil {
 			return err
 		}
 	}
@@ -735,16 +735,16 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrNa
 }
 
 // ConnectToNetwork connects a container to a network
-func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, isRestoring bool) error {
 	if !container.Running {
 		if container.RemovalInProgress || container.Dead {
 			return derr.ErrorCodeRemovalContainer.WithArgs(container.ID)
 		}
-		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
+		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true, isRestoring); err != nil {
 			return err
 		}
 	} else {
-		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
+		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true, isRestoring); err != nil {
 			return err
 		}
 	}
@@ -754,7 +754,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
-func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
+func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool, isRestoring bool) (err error) {
 	n, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, updateSettings)
 	if err != nil {
 		return err
@@ -766,7 +766,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	controller := daemon.netController
 
 	sb := daemon.getNetworkSandbox(container)
-	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb)
+	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb, isRestoring)
 	if err != nil {
 		return err
 	}
@@ -909,7 +909,7 @@ func disconnectFromNetwork(container *container.Container, n libnetwork.Network,
 	return nil
 }
 
-func (daemon *Daemon) initializeNetworking(container *container.Container) error {
+func (daemon *Daemon) initializeNetworking(container *container.Container, isRestoring bool) error {
 	var err error
 
 	if container.HostConfig.NetworkMode.IsContainer() {
@@ -940,7 +940,7 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 
 	}
 
-	if err := daemon.allocateNetwork(container); err != nil {
+	if err := daemon.allocateNetwork(container, isRestoring); err != nil {
 		return err
 	}
 
