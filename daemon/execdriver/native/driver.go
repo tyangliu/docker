@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
@@ -22,7 +23,6 @@ import (
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	aaprofile "github.com/docker/docker/profiles/apparmor"
-	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
@@ -329,11 +329,11 @@ func (d *Driver) Unpause(c *execdriver.Command) error {
 	return active.Resume()
 }
 
-func libcontainerCriuOpts(runconfigOpts *runconfig.CriuConfig) *libcontainer.CriuOpts {
+func libcontainerCriuOpts(containerOpts *types.CriuConfig) *libcontainer.CriuOpts {
 	return &libcontainer.CriuOpts{
-		ImagesDirectory:         runconfigOpts.ImagesDirectory,
-		WorkDirectory:           runconfigOpts.WorkDirectory,
-		LeaveRunning:            runconfigOpts.LeaveRunning,
+		ImagesDirectory:         containerOpts.ImagesDirectory,
+		WorkDirectory:           containerOpts.WorkDirectory,
+		LeaveRunning:            containerOpts.LeaveRunning,
 		TcpEstablished:          true,
 		ExternalUnixConnections: true,
 		FileLocks:               true,
@@ -341,7 +341,7 @@ func libcontainerCriuOpts(runconfigOpts *runconfig.CriuConfig) *libcontainer.Cri
 }
 
 // Checkpoint implements the exec driver Driver interface.
-func (d *Driver) Checkpoint(c *execdriver.Command, opts *runconfig.CriuConfig) error {
+func (d *Driver) Checkpoint(c *execdriver.Command, opts *types.CriuConfig) error {
 	active := d.activeContainers[c.ID]
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
@@ -358,7 +358,7 @@ func (d *Driver) Checkpoint(c *execdriver.Command, opts *runconfig.CriuConfig) e
 }
 
 // Restore implements the exec driver Driver interface.
-func (d *Driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks, opts *runconfig.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
+func (d *Driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks, opts *types.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
 	var (
 		cont libcontainer.Container
 		err  error
