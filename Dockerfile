@@ -71,6 +71,7 @@ RUN apt-get update && apt-get install -y \
 	xfsprogs \
 	libzfs-dev \
 	tar \
+	linux-image-`uname -r` \
 	--no-install-recommends \
 	&& ln -snf /usr/bin/clang-3.8 /usr/local/bin/clang \
 	&& ln -snf /usr/bin/clang++-3.8 /usr/local/bin/clang++
@@ -117,7 +118,7 @@ RUN set -x \
 	&& rm -rf "$SECCOMP_PATH"
 
 # Install Criu
-ENV CRIU_VERSION 1.7
+ENV CRIU_VERSION 1.8
 RUN mkdir -p /usr/src/criu \
 	&& curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
