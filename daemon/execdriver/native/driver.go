@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
@@ -23,6 +22,7 @@ import (
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	aaprofile "github.com/docker/docker/profiles/apparmor"
+	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"

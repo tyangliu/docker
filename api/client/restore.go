@@ -5,9 +5,9 @@ package client
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdRestore restores the process in a checkpointed container

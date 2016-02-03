@@ -16,6 +16,13 @@ If you use a Debian system, you can add the CRIU PPA and install with apt-get
 
 Alternatively, you can [build CRIU from source](http://criu.org/Installation).
 
+## Other Requirements
+
+Currently seccomp is only supported in Kernel 4.3 or newer, and CRIU 1.8 or newer.
+Since seccomp is now enabled by default, if your environment doesn't meet those
+requirements, you should start your containers with `--security-opt seccomp:unconfined`
+in order to use checkpoint/restore.
+
 ## Use cases for checkpoint & restore
 
 This feature is currently focused on single-host use cases for checkpoint and

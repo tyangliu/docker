@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	dkrouter "github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 

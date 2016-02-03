@@ -5,10 +5,10 @@ import (
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 )
 
@@ -125,7 +125,7 @@ func (daemon *Daemon) containerStartOrRestore(container *container.Container, op
 	// backwards API compatibility.
 	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
-	if err := daemon.initializeNetworking(container, isRestoring); err != nil {
+	if err := daemon.initializeNetworking(container); err != nil {
 		return err
 	}
 	linkedEnv, err := daemon.setupLinkedContainers(container)

@@ -9,10 +9,10 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"golang.org/x/sys/windows/registry"
 )

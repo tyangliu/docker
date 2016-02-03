@@ -5,8 +5,8 @@ package daemon
 import (
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
+	"github.com/docker/engine-api/types"
 )
 
 func addExperimentalState(container *container.Container, data *types.ContainerStateBase) *types.ContainerState {

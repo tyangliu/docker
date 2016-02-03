@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runc/libcontainer"
 )
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerRestore restores the process in a container with CRIU
