@@ -319,6 +319,7 @@ func libcontainerCriuOpts(containerOpts *types.CriuConfig) *libcontainer.CriuOpt
 		TcpEstablished:          true,
 		ExternalUnixConnections: true,
 		FileLocks:               true,
+		EmptyNs:		 syscall.CLONE_NEWNET,
 	}
 }
 
