@@ -1029,7 +1029,9 @@ func (daemon *Daemon) Restore(c *container.Container, pipes *execdriver.Pipes, r
 	hooks := execdriver.Hooks{
 		Restore: restoreCallback,
 	}
-
+	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
+		return daemon.setNetworkNamespaceKey(c.ID, pid)
+	})
 	exitCode, err := daemon.execDriver.Restore(c.Command, pipes, hooks, opts, forceRestore)
 	return exitCode, err
 }

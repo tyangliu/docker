@@ -674,24 +674,6 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 			break
 		}
 	}
-	for _, iface := range c.config.Networks {
-		switch iface.Type {
-		case "veth":
-			veth := new(criurpc.CriuVethPair)
-			veth.IfOut = proto.String(iface.HostInterfaceName)
-			veth.IfIn = proto.String(iface.Name)
-			req.Opts.Veths = append(req.Opts.Veths, veth)
-			break
-		case "loopback":
-			break
-		}
-	}
-	for _, i := range criuOpts.VethPairs {
-		veth := new(criurpc.CriuVethPair)
-		veth.IfOut = proto.String(i.HostInterfaceName)
-		veth.IfIn = proto.String(i.ContainerInterfaceName)
-		req.Opts.Veths = append(req.Opts.Veths, veth)
-	}
 
 	// append optional manage cgroups mode
 	if criuOpts.ManageCgroupsMode != 0 {
@@ -947,7 +929,21 @@ func (c *linuxContainer) criuNotifications(resp *criurpc.CriuResp, process *Proc
 			return err
 		}
 		break
-
+	case notify.GetScript() == "setup-namespaces":
+		if c.config.Hooks != nil {
+			s := configs.HookState{
+				Version: c.config.Version,
+				ID:      c.id,
+				Pid:     int(notify.GetPid()),
+				Root:    c.config.Rootfs,
+			}
+			for _, hook := range c.config.Hooks.Prestart {
+				if err := hook.Run(s); err != nil {
+					return newSystemError(err)
+				}
+			}
+		}
+		break
 	case notify.GetScript() == "post-restore":
 		pid := notify.GetPid()
 		r, err := newRestoredProcess(int(pid), fds)

@@ -390,6 +390,11 @@ func (d *Driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, hooks e
 		}
 	}()
 
+	pconfig := cont.Configp()
+	if err := d.createNetwork(pconfig, c, hooks); err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+
 	if err := cont.Restore(p, libcontainerCriuOpts(opts)); err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
