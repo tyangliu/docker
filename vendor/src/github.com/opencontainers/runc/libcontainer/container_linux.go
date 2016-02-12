@@ -115,6 +115,11 @@ func (c *linuxContainer) Config() configs.Config {
 	return *c.config
 }
 
+// Config returns the container's configuration
+func (c *linuxContainer) Configp() *configs.Config {
+	return c.config
+}
+
 func (c *linuxContainer) Status() (Status, error) {
 	c.m.Lock()
 	defer c.m.Unlock()

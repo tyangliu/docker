@@ -71,6 +71,8 @@ type BaseContainer interface {
 	// Returns the current config of the container.
 	Config() configs.Config
 
+	Configp() *configs.Config
+
 	// Returns the PIDs inside this container. The PIDs are in the namespace of the calling process.
 	//
 	// errors:
