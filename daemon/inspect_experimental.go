@@ -13,8 +13,6 @@ func addExperimentalState(container *container.Container, data *types.ContainerS
 	containerState := &types.ContainerState{}
 	containerState.ContainerStateBase = *data
 	containerState.Checkpointed = container.State.Checkpointed
-	if !container.State.CheckpointedAt.IsZero() {
-		containerState.CheckpointedAt = container.State.CheckpointedAt.Format(time.RFC3339Nano)
-	}
+	containerState.CheckpointedAt = container.State.CheckpointedAt.Format(time.RFC3339Nano)
 	return containerState
 }

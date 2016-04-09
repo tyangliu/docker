@@ -47,12 +47,11 @@ func (s *router) postContainersRestore(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	criuOpts := &types.CriuConfig{}
-	if err := json.NewDecoder(r.Body).Decode(&criuOpts); err != nil {
+	restoreOpts := &types.RestoreConfig{}
+	if err := json.NewDecoder(r.Body).Decode(&restoreOpts); err != nil {
 		return err
 	}
-	force := httputils.BoolValueOrDefault(r, "force", false)
-	if err := s.daemon.ContainerRestore(vars["name"], criuOpts, force); err != nil {
+	if err := s.daemon.ContainerRestore(vars["name"], &restoreOpts.CriuOpts, restoreOpts.ForceRestore); err != nil {
 		return err
 	}
 
