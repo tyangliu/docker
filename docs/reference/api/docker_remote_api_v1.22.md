@@ -265,6 +265,7 @@ Create a container
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
              "CapDrop": ["MKNOD"],
+             "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
@@ -367,6 +368,7 @@ Json Parameters:
           Specified in the form `<container name>[:<ro|rw>]`
     -   **CapAdd** - A list of kernel capabilities to add to the container.
     -   **Capdrop** - A list of kernel capabilities to drop from the container.
+    -   **GroupAdd** - A list of additional groups that the container process will run as
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
             always restart, `"unless-stopped"` to restart always except when
@@ -922,6 +924,12 @@ Start the container `id`
 
     HTTP/1.1 204 No Content
 
+Query Parameters:
+
+-   **detachKeys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
+
 Status Codes:
 
 -   **204** – no error
@@ -1133,6 +1141,9 @@ Attach to the container `id`
 
 Query Parameters:
 
+-   **detachKeys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.
 -   **stream** – 1/True/true or 0/False/false, return stream.
         Default `false`.
@@ -1213,6 +1224,9 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 Query Parameters:
 
+-   **detachKeys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.
 -   **stream** – 1/True/true or 0/False/false, return stream.
         Default `false`.
@@ -2263,16 +2277,23 @@ Status Codes:
 
 `GET /events`
 
-Get container events from docker, either in real time via streaming, or via
-polling (using since).
+Get container events from docker, either in real time via streaming, or via polling (using since).
 
 Docker containers report the following events:
 
-    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
+    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
 
-and Docker images report:
+Docker images report the following events:
 
     delete, import, pull, push, tag, untag
+
+Docker volumes report the following events:
+
+    create, mount, unmount, destroy
+
+Docker networks report the following events:
+
+    create, connect, disconnect, destroy
 
 **Example request**:
 
@@ -2283,10 +2304,48 @@ and Docker images report:
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {"status":"pull","id":"busybox:latest","time":1442421700,"timeNano":1442421700598988358}
-    {"status":"create","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716853979870}
-    {"status":"attach","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716894759198}
-    {"status":"start","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716983607193}
+    [
+	    {
+		"action": "pull",
+		"type": "image", 
+		"actor": {
+			"id": "busybox:latest",
+			"attributes": {}
+		}
+		"time": 1442421700,
+		"timeNano": 1442421700598988358
+	    },
+            {
+		"action": "create",
+		"type": "container",
+		"actor": {
+			"id": "5745704abe9caa5",
+			"attributes": {"image": "busybox"}
+		}
+		"time": 1442421716,
+		"timeNano": 1442421716853979870
+	    },
+            {
+		"action": "attach",
+		"type": "container",
+		"actor": {
+			"id": "5745704abe9caa5",
+			"attributes": {"image": "busybox"}
+		}
+		"time": 1442421716,
+		"timeNano": 1442421716894759198
+	    },
+            {
+		"action": "start",
+		"type": "container",
+		"actor": {
+			"id": "5745704abe9caa5",
+			"attributes": {"image": "busybox"}
+		}
+		"time": 1442421716,
+		"timeNano": 1442421716983607193
+	    }
+    ]
 
 Query Parameters:
 
@@ -2297,6 +2356,9 @@ Query Parameters:
   -   `event=<string>`; -- event to filter
   -   `image=<string>`; -- image to filter
   -   `label=<string>`; -- image and container label to filter
+  -   `type=<string>`; -- either `container` or `image` or `volume` or `network`
+  -   `volume=<string>`; -- volume to filter
+  -   `network=<string>`; -- network to filter
 
 Status Codes:
 
@@ -2420,6 +2482,7 @@ Sets up an exec instance in a running container `id`
        "AttachStdin": false,
        "AttachStdout": true,
        "AttachStderr": true,
+       "DetachKeys": "ctrl-p,ctrl-q",
        "Tty": false,
        "Cmd": [
                      "date"
@@ -2441,6 +2504,9 @@ Json Parameters:
 -   **AttachStdin** - Boolean value, attaches to `stdin` of the `exec` command.
 -   **AttachStdout** - Boolean value, attaches to `stdout` of the `exec` command.
 -   **AttachStderr** - Boolean value, attaches to `stderr` of the `exec` command.
+-   **DetachKeys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **Tty** - Boolean value to allocate a pseudo-TTY.
 -   **Cmd** - Command to run specified as a string or an array of strings.
 
@@ -2751,7 +2817,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    DELETE /volumes/local/tardis HTTP/1.1
+    DELETE /volumes/tardis HTTP/1.1
 
 **Example response**:
 
@@ -2911,11 +2977,6 @@ Create a network
 **Example request**:
 
 ```
-Create a network
-
-**Example request**:
-
-```
 POST /networks/create HTTP/1.1
 Content-Type: application/json
 
@@ -2970,7 +3031,13 @@ POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/
 Content-Type: application/json
 
 {
-  "Container":"3613f73ba0e4"
+  "Container":"3613f73ba0e4",
+  "endpoint_config": {
+    "test_nw": {
+        "IPv4Address":"172.24.56.89",
+        "IPv6Address":"2001:db8::5689"
+    }
+  }
 }
 ```
 
@@ -2980,8 +3047,9 @@ Content-Type: application/json
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container is not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
@@ -3010,8 +3078,9 @@ Content-Type: application/json
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
@@ -3029,11 +3098,11 @@ Instruct the driver to remove the network (`id`).
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 OK
 
 Status Codes
 
--   **204** - no error
+-   **200** - no error
 -   **404** - no such network
 -   **500** - server error
 

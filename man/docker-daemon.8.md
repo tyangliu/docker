@@ -1,4 +1,4 @@
-% DOCKER(1) Docker User Manuals
+% DOCKER(8) Docker User Manuals
 % Shishir Mahajan
 % SEPTEMBER 2015
 # NAME
@@ -10,6 +10,7 @@ docker-daemon - Enable daemon mode
 [**--authz-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
+[**--cgroup-parent**[=*[]*]]
 [**--cluster-store**[=*[]*]]
 [**--cluster-advertise**[=*[]*]]
 [**--cluster-store-opt**[=*map[]*]]
@@ -79,6 +80,9 @@ format.
 
 **--bip**=""
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
+
+**--cgroup-parent**=""
+  Set parent cgroup for all containers. Default is "/docker" for fs cgroup driver and "system.slice" for systemd cgroup driver.
 
 **--cluster-store**=""
   URL of the distributed storage backend

@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types/container"
 )
 
 // ImportImage imports an image, getting the archived layer data either from
@@ -97,7 +97,7 @@ func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string
 		}
 	}
 
-	daemon.EventsService.Log("import", id.String(), "")
+	daemon.LogImageEvent(id.String(), id.String(), "import")
 	outStream.Write(sf.FormatStatus("", id.String()))
 	return nil
 }

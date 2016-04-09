@@ -15,9 +15,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/reexec"
@@ -91,7 +90,6 @@ func NewDriver(root string, options []string) (*Driver, error) {
 			case "systemd":
 				if systemd.UseSystemd() {
 					cgm = libcontainer.SystemdCgroups
-					template.SystemdCgroups = true
 				} else {
 					// warn them that they chose the wrong driver
 					logrus.Warn("You cannot use systemd as native.cgroupdriver, using cgroupfs instead")
@@ -509,7 +507,7 @@ func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	memoryLimit := c.Config().Cgroups.Memory
+	memoryLimit := c.Config().Cgroups.Resources.Memory
 	// if the container does not have any memory limit specified set the
 	// limit to the machines memory
 	if memoryLimit == 0 {

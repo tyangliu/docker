@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder/dockerignore"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
@@ -30,6 +29,8 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
 )
 
@@ -49,7 +50,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
-	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	flShmSize := cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	flCPUShares := cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 	flCPUPeriod := cmd.Int64([]string{"-cpu-period"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) period")
@@ -57,7 +58,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
-	flBuildArg := opts.NewListOpts(opts.ValidateEnv)
+	flBuildArg := opts.NewListOpts(runconfigopts.ValidateEnv)
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation level")
 
@@ -121,15 +122,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		contextDir = tempDir
 	}
 
-	// Resolve the FROM lines in the Dockerfile to trusted digest references
-	// using Notary. On a successful build, we must tag the resolved digests
-	// to the original name specified in the Dockerfile.
-	newDockerfile, resolvedTags, err := rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
-	if err != nil {
-		return fmt.Errorf("unable to process Dockerfile: %v", err)
-	}
-	defer newDockerfile.Close()
-
 	// And canonicalize dockerfile name to a platform-independent one
 	relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
 	if err != nil {
@@ -176,9 +168,22 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 
-	// Wrap the tar archive to replace the Dockerfile entry with the rewritten
-	// Dockerfile which uses trusted pulls.
-	context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
+	var resolvedTags []*resolvedTag
+	if isTrusted() {
+		// Resolve the FROM lines in the Dockerfile to trusted digest references
+		// using Notary. On a successful build, we must tag the resolved digests
+		// to the original name specified in the Dockerfile.
+		var newDockerfile *trustedDockerfile
+		newDockerfile, resolvedTags, err = rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
+		if err != nil {
+			return fmt.Errorf("unable to process Dockerfile: %v", err)
+		}
+		defer newDockerfile.Close()
+
+		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
+		// Dockerfile which uses trusted pulls.
+		context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
+	}
 
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
@@ -207,6 +212,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
+	var shmSize int64
+	if *flShmSize != "" {
+		shmSize, err = units.RAMInBytes(*flShmSize)
+		if err != nil {
+			return err
+		}
+	}
+
 	var remoteContext string
 	if isRemote {
 		remoteContext = cmd.Arg(0)
@@ -223,17 +236,17 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		Remove:         *rm,
 		ForceRemove:    *forceRm,
 		PullParent:     *pull,
-		Isolation:      *isolation,
+		IsolationLevel: container.IsolationLevel(*isolation),
 		CPUSetCPUs:     *flCPUSetCpus,
 		CPUSetMems:     *flCPUSetMems,
 		CPUShares:      *flCPUShares,
 		CPUQuota:       *flCPUQuota,
 		CPUPeriod:      *flCPUPeriod,
 		CgroupParent:   *flCgroupParent,
-		ShmSize:        *flShmSize,
 		Dockerfile:     relDockerfile,
+		ShmSize:        shmSize,
 		Ulimits:        flUlimits.GetList(),
-		BuildArgs:      flBuildArg.GetAll(),
+		BuildArgs:      runconfigopts.ConvertKVStringsToMap(flBuildArg.GetAll()),
 		AuthConfigs:    cli.configFile.AuthConfigs,
 	}
 
@@ -266,11 +279,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if *suppressOutput {
 		fmt.Fprintf(cli.out, "%s", buildBuff)
 	}
-	// Since the build was successful, now we must tag any of the resolved
-	// images from the above Dockerfile rewrite.
-	for _, resolved := range resolvedTags {
-		if err := cli.tagTrusted(resolved.digestRef, resolved.tagRef); err != nil {
-			return err
+
+	if isTrusted() {
+		// Since the build was successful, now we must tag any of the resolved
+		// images from the above Dockerfile rewrite.
+		for _, resolved := range resolvedTags {
+			if err := cli.tagTrusted(resolved.digestRef, resolved.tagRef); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -584,7 +600,7 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(reference.Name
 		line := scanner.Text()
 
 		matches := dockerfileFromLinePattern.FindStringSubmatch(line)
-		if matches != nil && matches[1] != "scratch" {
+		if matches != nil && matches[1] != api.NoBaseImageSpecifier {
 			// Replace the line with a resolved "FROM repo@digest"
 			ref, err := reference.ParseNamed(matches[1])
 			if err != nil {

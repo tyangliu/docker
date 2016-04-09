@@ -6,7 +6,9 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/docker/api/types/network"
+	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 )
 
@@ -114,7 +116,13 @@ func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, opti
 
 	nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf))
 	nwOptions = append(nwOptions, libnetwork.NetworkOptionDriverOpts(options))
-	return c.NewNetwork(driver, name, nwOptions...)
+	n, err := c.NewNetwork(driver, name, nwOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	daemon.LogNetworkEvent(n, "create")
+	return n, nil
 }
 
 func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnetwork.IpamConf, error) {
@@ -142,12 +150,12 @@ func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnet
 // ConnectContainerToNetwork connects the given container to the given
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
-func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string) error {
+func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
-	return daemon.ConnectToNetwork(container, networkName)
+	return daemon.ConnectToNetwork(container, networkName, endpointConfig)
 }
 
 // DisconnectContainerFromNetwork disconnects the given container from
@@ -177,4 +185,22 @@ func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
 	}
 
 	return pluginList
+}
+
+// DeleteNetwork destroys a network unless it's one of docker's predefined networks.
+func (daemon *Daemon) DeleteNetwork(networkID string) error {
+	nw, err := daemon.FindNetwork(networkID)
+	if err != nil {
+		return err
+	}
+
+	if runconfig.IsPreDefinedNetwork(nw.Name()) {
+		return derr.ErrorCodeCantDeletePredefinedNetwork.WithArgs(nw.Name())
+	}
+
+	if err := nw.Delete(); err != nil {
+		return err
+	}
+	daemon.LogNetworkEvent(nw, "destroy")
+	return nil
 }

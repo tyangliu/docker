@@ -3,9 +3,9 @@
 package container
 
 import (
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -39,7 +39,7 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 }
 
 // UnmountVolumes explicitly unmounts volumes from the container.
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	return nil
 }
 

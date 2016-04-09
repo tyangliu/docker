@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -87,7 +87,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 		untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
-		daemon.EventsService.Log("untag", imgID.String(), "")
+		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		records = append(records, untaggedRecord)
 
 		// If has remaining references then untag finishes the remove
@@ -109,7 +109,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 			untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
-			daemon.EventsService.Log("untag", imgID.String(), "")
+			daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 			records = append(records, untaggedRecord)
 		}
 	}
@@ -174,7 +174,7 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 
 		untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
-		daemon.EventsService.Log("untag", imgID.String(), "")
+		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		*records = append(*records, untaggedRecord)
 	}
 
@@ -243,7 +243,7 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 		return err
 	}
 
-	daemon.EventsService.Log("delete", imgID.String(), "")
+	daemon.LogImageEvent(imgID.String(), imgID.String(), "delete")
 	*records = append(*records, types.ImageDelete{Deleted: imgID.String()})
 	for _, removedLayer := range removedLayers {
 		*records = append(*records, types.ImageDelete{Deleted: removedLayer.ChainID.String()})

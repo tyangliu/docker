@@ -170,6 +170,10 @@ type Store interface {
 	CreateRWLayer(id string, parent ChainID, mountLabel string, initFunc MountInit) (RWLayer, error)
 	GetRWLayer(id string) (RWLayer, error)
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)
+
+	Cleanup() error
+	DriverStatus() [][2]string
+	DriverName() string
 }
 
 // MetadataTransaction represents functions for setting layer metadata
@@ -179,7 +183,7 @@ type MetadataTransaction interface {
 	SetParent(parent ChainID) error
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
-	TarSplitWriter() (io.WriteCloser, error)
+	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
 	Cancel() error

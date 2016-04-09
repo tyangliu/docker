@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/engine-api/types"
 )
 
 const (
@@ -51,6 +51,7 @@ type ConfigFile struct {
 	HTTPHeaders  map[string]string           `json:"HttpHeaders,omitempty"`
 	PsFormat     string                      `json:"psFormat,omitempty"`
 	ImagesFormat string                      `json:"imagesFormat,omitempty"`
+	DetachKeys   string                      `json:"detachKeys,omitempty"`
 	filename     string                      // Note: not serialized - for internal use only
 }
 

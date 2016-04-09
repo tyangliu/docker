@@ -6,12 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -51,7 +51,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			}
 		}
 
-		v, err := daemon.createVolume(name, volumeDriver, nil)
+		v, err := daemon.volumes.CreateWithRef(name, volumeDriver, container.ID, nil)
 		if err != nil {
 			return err
 		}

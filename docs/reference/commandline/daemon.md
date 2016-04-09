@@ -17,9 +17,10 @@ weight = -1
 
     Options:
       --api-cors-header=""                   Set CORS headers in the remote API
-      --authz-plugin=[]                     Set authorization plugins to load
+      --authz-plugin=[]                      Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
+      --cgroup-parent=                       Set parent cgroup for all containers
       -D, --debug                            Enable debug mode
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
@@ -157,7 +158,7 @@ The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
 does not share executable memory between devices. Use
 `docker daemon -s btrfs -g /mnt/btrfs_partition`.
 
-The `zfs` driver is probably not fast as `btrfs` but has a longer track record
+The `zfs` driver is probably not as fast as `btrfs` but has a longer track record
 on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
 cached only once. Use `docker daemon -s zfs`. To select a different zfs filesystem
 set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
@@ -643,4 +644,21 @@ set like this:
     /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 
 
+# Default cgroup parent
 
+The `--cgroup-parent` option allows you to set the default cgroup parent
+to use for containers. If this option is not set, it defaults to `/docker` for
+fs cgroup driver and `system.slice` for systemd cgroup driver.
+
+If the cgroup has a leading forward slash (`/`), the cgroup is created
+under the root cgroup, otherwise the cgroup is created under the daemon
+cgroup.
+
+Assuming the daemon is running in cgroup `daemoncgroup`,
+`--cgroup-parent=/foobar` creates a cgroup in
+`/sys/fs/cgroup/memory/foobar`, wheras using `--cgroup-parent=foobar`
+creates the cgroup in `/sys/fs/cgroup/memory/daemoncgroup/foobar`
+
+This setting can also be set per container, using the `--cgroup-parent`
+option on `docker create` and `docker run`, and takes precedence over
+the `--cgroup-parent` option on the daemon.

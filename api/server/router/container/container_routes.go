@@ -12,15 +12,16 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
+	timetypes "github.com/docker/engine-api/types/time"
 	"golang.org/x/net/context"
 	"golang.org/x/net/websocket"
 )
@@ -224,7 +225,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		// to keep backwards compatibility.
 		version := httputils.VersionFromContext(ctx)
 		if version.GreaterThanOrEqualTo("1.20") || !isStopped {
-			return fmt.Errorf("Cannot kill container %s: %v", name, err)
+			return fmt.Errorf("Cannot kill container %s: %v", name, utils.GetErrorMessage(err))
 		}
 	}
 
@@ -331,7 +332,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 
-	_, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	_, hostConfig, _, err := runconfig.DecodeContainerConfig(r.Body)
 	if err != nil {
 		return err
 	}
@@ -357,7 +358,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	name := r.Form.Get("name")
 
-	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	config, hostConfig, networkingConfig, err := runconfig.DecodeContainerConfig(r.Body)
 	if err != nil {
 		return err
 	}
@@ -365,10 +366,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	adjustCPUShares := version.LessThan("1.19")
 
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
-		Name:            name,
-		Config:          config,
-		HostConfig:      hostConfig,
-		AdjustCPUShares: adjustCPUShares,
+		Name:             name,
+		Config:           config,
+		HostConfig:       hostConfig,
+		NetworkingConfig: networkingConfig,
+		AdjustCPUShares:  adjustCPUShares,
 	})
 	if err != nil {
 		return err
@@ -420,21 +422,32 @@ func (s *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 }
 
 func (s *containerRouter) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
+	err := httputils.ParseForm(r)
+	if err != nil {
 		return err
 	}
 	containerName := vars["name"]
 
 	_, upgrade := r.Header["Upgrade"]
 
+	keys := []byte{}
+	detachKeys := r.FormValue("detachKeys")
+	if detachKeys != "" {
+		keys, err = term.ToBytes(detachKeys)
+		if err != nil {
+			logrus.Warnf("Invalid escape keys provided (%s) using default : ctrl-p ctrl-q", detachKeys)
+		}
+	}
+
 	attachWithLogsConfig := &daemon.ContainerAttachWithLogsConfig{
-		Hijacker:  w.(http.Hijacker),
-		Upgrade:   upgrade,
-		UseStdin:  httputils.BoolValue(r, "stdin"),
-		UseStdout: httputils.BoolValue(r, "stdout"),
-		UseStderr: httputils.BoolValue(r, "stderr"),
-		Logs:      httputils.BoolValue(r, "logs"),
-		Stream:    httputils.BoolValue(r, "stream"),
+		Hijacker:   w.(http.Hijacker),
+		Upgrade:    upgrade,
+		UseStdin:   httputils.BoolValue(r, "stdin"),
+		UseStdout:  httputils.BoolValue(r, "stdout"),
+		UseStderr:  httputils.BoolValue(r, "stderr"),
+		Logs:       httputils.BoolValue(r, "logs"),
+		Stream:     httputils.BoolValue(r, "stream"),
+		DetachKeys: keys,
 	}
 
 	return s.backend.ContainerAttachWithLogs(containerName, attachWithLogsConfig)
@@ -450,19 +463,30 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
 	}
 
+	var keys []byte
+	var err error
+	detachKeys := r.FormValue("detachKeys")
+	if detachKeys != "" {
+		keys, err = term.ToBytes(detachKeys)
+		if err != nil {
+			logrus.Warnf("Invalid escape keys provided (%s) using default : ctrl-p ctrl-q", detachKeys)
+		}
+	}
+
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
 		wsAttachWithLogsConfig := &daemon.ContainerWsAttachWithLogsConfig{
-			InStream:  ws,
-			OutStream: ws,
-			ErrStream: ws,
-			Logs:      httputils.BoolValue(r, "logs"),
-			Stream:    httputils.BoolValue(r, "stream"),
+			InStream:   ws,
+			OutStream:  ws,
+			ErrStream:  ws,
+			Logs:       httputils.BoolValue(r, "logs"),
+			Stream:     httputils.BoolValue(r, "stream"),
+			DetachKeys: keys,
 		}
 
 		if err := s.backend.ContainerWsAttachWithLogs(containerName, wsAttachWithLogsConfig); err != nil {
-			logrus.Errorf("Error attaching websocket: %s", err)
+			logrus.Errorf("Error attaching websocket: %s", utils.GetErrorMessage(err))
 		}
 	})
 	ws := websocket.Server{Handler: h, Handshake: nil}

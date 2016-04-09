@@ -28,6 +28,7 @@ parent = "smn_cli"
       --cpuset-cpus=""              CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       -d, --detach                  Run container in background and print container ID
+      --detach-keys                 Specify the escape key sequence used to detach a container
       --device=[]                   Add a host device to the container
       --device-read-bps=[]          Limit read rate (bytes per second) from a device (e.g., --device-read-bps=/dev/sda:1mb)
       --device-read-iops=[]         Limit read rate (IO per second) from a device (e.g., --device-read-iops=/dev/sda:1000)
@@ -55,8 +56,10 @@ parent = "smn_cli"
       --log-opt=[]                  Log driver specific options
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
+      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
+      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --memory-reservation=""       Memory soft limit
-      --memory-swap=""              Total memory (memory + swap), '-1' to disable swap
+      --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                     Assign a name to the container
       --net="bridge"                Connect a container to a network

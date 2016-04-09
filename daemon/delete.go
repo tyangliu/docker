@@ -6,11 +6,11 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/layer"
 	volumestore "github.com/docker/docker/volume/store"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerRm removes the container id from the filesystem. An error
@@ -148,7 +148,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	metadata, err := daemon.layerStore.ReleaseRWLayer(container.RWLayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil && err != layer.ErrMountDoesNotExist {
-		return derr.ErrorCodeRmDriverFS.WithArgs(daemon.driver, container.ID, err)
+		return derr.ErrorCodeRmDriverFS.WithArgs(daemon.GraphDriverName(), container.ID, err)
 	}
 
 	if err = daemon.execDriver.Clean(container.ID); err != nil {
@@ -166,11 +166,13 @@ func (daemon *Daemon) VolumeRm(name string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := daemon.volumes.Remove(v); err != nil {
 		if volumestore.IsInUse(err) {
 			return derr.ErrorCodeRmVolumeInUse.WithArgs(err)
 		}
 		return derr.ErrorCodeRmVolume.WithArgs(name, err)
 	}
+	daemon.LogVolumeEvent(v.Name(), "destroy", map[string]string{"driver": v.DriverName()})
 	return nil
 }

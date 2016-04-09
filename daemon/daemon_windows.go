@@ -9,13 +9,13 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
+	containertypes "github.com/docker/engine-api/types/container"
 	// register the windows graph driver
 	"github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/system"
@@ -156,67 +156,78 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	}
 }
 
-func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Store, rs reference.Store) error {
-	if wd, ok := driver.(*windows.Driver); ok {
-		imageInfos, err := wd.GetCustomImageInfos()
+func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
+	type graphDriverStore interface {
+		GraphDriver() graphdriver.Driver
+	}
+
+	gds, ok := ls.(graphDriverStore)
+	if !ok {
+		return nil
+	}
+
+	driver := gds.GraphDriver()
+	wd, ok := driver.(*windows.Driver)
+	if !ok {
+		return nil
+	}
+
+	imageInfos, err := wd.GetCustomImageInfos()
+	if err != nil {
+		return err
+	}
+
+	// Convert imageData to valid image configuration
+	for i := range imageInfos {
+		name := strings.ToLower(imageInfos[i].Name)
+
+		type registrar interface {
+			RegisterDiffID(graphID string, size int64) (layer.Layer, error)
+		}
+		r, ok := ls.(registrar)
+		if !ok {
+			return errors.New("Layerstore doesn't support RegisterDiffID")
+		}
+		if _, err := r.RegisterDiffID(imageInfos[i].ID, imageInfos[i].Size); err != nil {
+			return err
+		}
+		// layer is intentionally not released
+
+		rootFS := image.NewRootFS()
+		rootFS.BaseLayer = filepath.Base(imageInfos[i].Path)
+
+		// Create history for base layer
+		config, err := json.Marshal(&image.Image{
+			V1Image: image.V1Image{
+				DockerVersion: dockerversion.Version,
+				Architecture:  runtime.GOARCH,
+				OS:            runtime.GOOS,
+				Created:       imageInfos[i].CreatedTime,
+			},
+			RootFS:  rootFS,
+			History: []image.History{},
+		})
+
+		named, err := reference.ParseNamed(name)
 		if err != nil {
 			return err
 		}
 
-		// Convert imageData to valid image configuration
-		for i := range imageInfos {
-			name := strings.ToLower(imageInfos[i].Name)
-
-			type registrar interface {
-				RegisterDiffID(graphID string, size int64) (layer.Layer, error)
-			}
-			r, ok := ls.(registrar)
-			if !ok {
-				return errors.New("Layerstore doesn't support RegisterDiffID")
-			}
-			if _, err := r.RegisterDiffID(imageInfos[i].ID, imageInfos[i].Size); err != nil {
-				return err
-			}
-			// layer is intentionally not released
-
-			rootFS := image.NewRootFS()
-			rootFS.BaseLayer = filepath.Base(imageInfos[i].Path)
-
-			// Create history for base layer
-			config, err := json.Marshal(&image.Image{
-				V1Image: image.V1Image{
-					DockerVersion: dockerversion.Version,
-					Architecture:  runtime.GOARCH,
-					OS:            runtime.GOOS,
-					Created:       imageInfos[i].CreatedTime,
-				},
-				RootFS:  rootFS,
-				History: []image.History{},
-			})
-
-			named, err := reference.ParseNamed(name)
-			if err != nil {
-				return err
-			}
-
-			ref, err := reference.WithTag(named, imageInfos[i].Version)
-			if err != nil {
-				return err
-			}
-
-			id, err := is.Create(config)
-			if err != nil {
-				return err
-			}
-
-			if err := rs.AddTag(ref, id, true); err != nil {
-				return err
-			}
-
-			logrus.Debugf("Registered base layer %s as %s", ref, id)
+		ref, err := reference.WithTag(named, imageInfos[i].Version)
+		if err != nil {
+			return err
 		}
 
-	}
+		id, err := is.Create(config)
+		if err != nil {
+			return err
+		}
 
+		if err := rs.AddTag(ref, id, true); err != nil {
+			return err
+		}
+
+		logrus.Debugf("Registered base layer %s as %s", ref, id)
+	}
 	return nil
 }

@@ -13,8 +13,6 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -22,6 +20,8 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
@@ -259,6 +259,14 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, isR
 
 	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		ipam := epConfig.IPAMConfig
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+			createOptions = append(createOptions,
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+		}
 	}
 
 	// Other configs are applicable only for the endpoint in the network
@@ -612,7 +620,7 @@ func (container *Container) UpdateContainer(hostConfig *container.HostConfig) er
 	// the command so we can update configs to the real world.
 	if container.IsRunning() {
 		container.Lock()
-		updateCommand(container.Command, resources)
+		updateCommand(container.Command, *cResources)
 		container.Unlock()
 	}
 
@@ -629,7 +637,7 @@ func detachMounted(path string) error {
 }
 
 // UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	var (
 		volumeMounts []volume.MountPoint
 		err          error
@@ -660,6 +668,12 @@ func (container *Container) UnmountVolumes(forceSyscall bool) error {
 			if err := volumeMount.Volume.Unmount(); err != nil {
 				return err
 			}
+
+			attributes := map[string]string{
+				"driver":    volumeMount.Volume.DriverName(),
+				"container": container.ID,
+			}
+			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
 		}
 	}
 

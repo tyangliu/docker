@@ -3,7 +3,7 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/engine-api/types/container"
 )
 
 // ContainerUpdate updates resources of the container
@@ -53,6 +53,8 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 			return err
 		}
 	}
+
+	daemon.LogContainerEvent(container, "update")
 
 	return nil
 }
